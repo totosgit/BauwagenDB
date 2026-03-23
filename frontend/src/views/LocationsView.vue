@@ -1,0 +1,317 @@
+<template>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">Lagerorte</h1>
+      <button class="btn btn-primary btn-sm" @click="openCreate(null)">+ Neu</button>
+    </div>
+
+    <!-- Collapse-All / Expand-All -->
+    <div v-if="tree.length" class="tree-controls">
+      <button class="btn btn-secondary btn-sm" @click="doExpandAll">▾ Alle aufklappen</button>
+      <button class="btn btn-secondary btn-sm" @click="doCollapseAll">▸ Alle zuklappen</button>
+    </div>
+
+    <div v-if="loading" class="loading">Laden ...</div>
+
+    <div v-else-if="!tree.length" class="empty">
+      <div class="icon">🚌</div>
+      <div>Noch keine Lagerorte angelegt</div>
+      <div style="font-size:14px; color:var(--text-muted); margin-top:6px">
+        Starte mit dem Anlegen von „Bauwagen" oder „Schopf"
+      </div>
+      <button class="btn btn-primary" style="margin-top:16px" @click="openCreate(null)">
+        Ersten Ort anlegen
+      </button>
+    </div>
+
+    <div v-else class="tree-root">
+      <draggable
+        :list="tree"
+        item-key="id"
+        handle=".drag-handle"
+        :animation="150"
+        ghost-class="drag-ghost"
+        chosen-class="drag-chosen"
+        @end="onRootDragEnd"
+      >
+        <template #item="{ element }">
+          <LocationNode :node="element" />
+        </template>
+      </draggable>
+    </div>
+
+    <!-- Modal: Lagerort anlegen / bearbeiten -->
+    <div v-if="modal.open" class="modal-backdrop" @click.self="modal.open = false">
+      <div class="modal-box">
+        <h2 class="modal-title">{{ modal.id ? 'Ort bearbeiten' : 'Neuer Lagerort' }}</h2>
+
+        <div v-if="allowedTypes.length" class="type-hint">
+          <span v-if="modal.form.parent_id">
+            Unter <strong>{{ parentName }}</strong> erlaubt:
+            <span v-for="t in allowedTypes" :key="t" class="type-chip">{{ TYPE_LABEL[t] }}</span>
+          </span>
+          <span v-else>Root-Ebene: Bauwagen, Schopf oder Sonstiges</span>
+        </div>
+        <div v-else-if="modal.form.parent_id" class="type-hint type-hint-warn">
+          Dieser Typ kann keine Unterbereiche haben.
+        </div>
+
+        <form @submit.prevent="saveModal">
+          <div class="form-group">
+            <label>Name *</label>
+            <input v-model="modal.form.name" required placeholder="z.B. Bauwagen, Regal A, Schrank Links ..." />
+          </div>
+
+          <div class="form-group">
+            <label>Typ</label>
+            <div class="type-grid">
+              <button
+                v-for="t in allowedTypes"
+                :key="t"
+                type="button"
+                class="type-btn"
+                :class="{ active: modal.form.type === t }"
+                @click="modal.form.type = t"
+              >
+                <span class="type-btn-icon">{{ TYPE_ICON[t] }}</span>
+                <span>{{ TYPE_LABEL[t] }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Lagerzustand</label>
+            <select v-model="modal.form.storage_mode">
+              <option value="both">Immer (Lager &amp; Jahr)</option>
+              <option value="lager">Nur Auf dem Lager</option>
+              <option value="jahr">Nur Unter dem Jahr</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Beschreibung</label>
+            <textarea v-model="modal.form.description" placeholder="Optional ..."></textarea>
+          </div>
+
+          <div class="coord-row">
+            <div class="form-group" style="flex:1"><label>X</label><input v-model.number="modal.form.coordinate_x" type="number" step="0.1" placeholder="0" /></div>
+            <div class="form-group" style="flex:1"><label>Y</label><input v-model.number="modal.form.coordinate_y" type="number" step="0.1" placeholder="0" /></div>
+            <div class="form-group" style="flex:1"><label>Z</label><input v-model.number="modal.form.coordinate_z" type="number" step="0.1" placeholder="0" /></div>
+          </div>
+
+          <div v-if="modal.error" class="error-msg">{{ modal.error }}</div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" @click="modal.open = false">Abbrechen</button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="modal.saving || !allowedTypes.includes(modal.form.type)"
+            >{{ modal.saving ? '...' : 'Speichern' }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, provide } from 'vue'
+import draggable from 'vuedraggable'
+import {
+  getLocationsTree, getLocations,
+  createLocation, updateLocation, deleteLocation, reorderLocations,
+} from '../api/index.js'
+import { useMode } from '../composables/useMode.js'
+import { useExpanded } from '../composables/useExpanded.js'
+import LocationNode from '../components/LocationNode.vue'
+
+const { mode } = useMode()
+const { expandAll, collapseAll } = useExpanded()
+
+const tree = ref([])
+const allLocations = ref([])
+const loading = ref(false)
+
+// ── Hierarchie-Regeln ────────────────────────────────────────────
+const VALID_CHILDREN = {
+  null:      ['bauwagen', 'schopf', 'sonstiges'],
+  bauwagen:  ['regal', 'schrank', 'kiste', 'wand'],
+  schopf:    ['regal', 'schrank', 'kiste', 'wand'],
+  sonstiges: ['regal', 'schrank', 'kiste', 'wand', 'sonstiges'],
+  regal:     ['fach'],
+  fach:      ['boden'],
+  schrank:   ['boden'],
+  boden:     ['kiste'],
+  kiste:     [],
+  wand:      [],
+}
+const TYPE_ICON = {
+  bauwagen: '🚌', schopf: '🏚️', sonstiges: '🏠',
+  regal: '🗄️', schrank: '🪟',
+  fach: '🗃️', boden: '▭',
+  kiste: '📦', wand: '🧱',
+}
+const TYPE_LABEL = {
+  bauwagen: 'Bauwagen', schopf: 'Schopf', sonstiges: 'Sonstiges',
+  regal: 'Regal', schrank: 'Schrank',
+  fach: 'Fach', boden: 'Boden',
+  kiste: 'Kiste', wand: 'Wand',
+}
+
+// ── Modal ────────────────────────────────────────────────────────
+const emptyForm = (parentId = null, parentType = null) => {
+  const allowed = VALID_CHILDREN[parentType] ?? VALID_CHILDREN[null]
+  return {
+    name: '', type: allowed[0] ?? 'bauwagen', storage_mode: 'both',
+    parent_id: parentId, description: '',
+    coordinate_x: null, coordinate_y: null, coordinate_z: null,
+  }
+}
+const modal = ref({ open: false, id: null, saving: false, error: '', form: emptyForm() })
+
+const allowedTypes = computed(() => {
+  const parentId = modal.value.form.parent_id
+  if (!parentId) return VALID_CHILDREN[null]
+  const parent = allLocations.value.find(l => l.id === parentId)
+  return VALID_CHILDREN[parent?.type] ?? VALID_CHILDREN[null]
+})
+const parentName = computed(() => {
+  const parentId = modal.value.form.parent_id
+  return allLocations.value.find(l => l.id === parentId)?.name ?? null
+})
+
+// ── Daten laden ──────────────────────────────────────────────────
+async function load() {
+  loading.value = true
+  try {
+    ;[tree.value, allLocations.value] = await Promise.all([
+      getLocationsTree(mode.value),
+      getLocations(),
+    ])
+  } finally {
+    loading.value = false
+  }
+}
+
+// ── Expand All / Collapse All ────────────────────────────────────
+function collectAllIds(nodes) {
+  const ids = []
+  function walk(node) {
+    ids.push(node.id)
+    node.children?.forEach(walk)
+  }
+  nodes.forEach(walk)
+  return ids
+}
+function doExpandAll() { expandAll(collectAllIds(tree.value)) }
+function doCollapseAll() { collapseAll(collectAllIds(tree.value)) }
+
+// ── CRUD ─────────────────────────────────────────────────────────
+function openCreate(parentId) {
+  const parent = parentId ? allLocations.value.find(l => l.id === parentId) : null
+  modal.value = { open: true, id: null, saving: false, error: '', form: emptyForm(parentId, parent?.type ?? null) }
+}
+
+function openEdit(node) {
+  modal.value = {
+    open: true, id: node.id, saving: false, error: '',
+    form: {
+      name: node.name, type: node.type, storage_mode: node.storage_mode || 'both',
+      parent_id: node.parent_id, description: node.description || '',
+      coordinate_x: node.coordinate_x, coordinate_y: node.coordinate_y, coordinate_z: node.coordinate_z,
+    },
+  }
+}
+
+async function saveModal() {
+  modal.value.saving = true
+  modal.value.error = ''
+  try {
+    if (modal.value.id) await updateLocation(modal.value.id, modal.value.form)
+    else await createLocation(modal.value.form)
+    modal.value.open = false
+    await load()
+  } catch (e) {
+    modal.value.error = e.response?.data?.detail || 'Fehler beim Speichern'
+  } finally {
+    modal.value.saving = false
+  }
+}
+
+async function doDelete(node) {
+  if (!confirm(`"${node.name}" wirklich loeschen?`)) return
+  try {
+    await deleteLocation(node.id)
+    await load()
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Fehler beim Loeschen')
+  }
+}
+
+async function doReorder(orderedIds) {
+  await reorderLocations(orderedIds)
+  // Kein reload nötig — vuedraggable hat die Liste bereits lokal sortiert
+}
+
+function onRootDragEnd() {
+  doReorder(tree.value.map(n => n.id))
+}
+
+// ── Handlers via provide() an LocationNode weitergeben ───────────
+provide('locHandlers', {
+  onCreate:  openCreate,
+  onEdit:    openEdit,
+  onDelete:  doDelete,
+  onReorder: doReorder,
+})
+
+onMounted(load)
+</script>
+
+<style scoped>
+.tree-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.tree-root {
+  padding-bottom: 8px;
+}
+
+/* Typ-Auswahl */
+.type-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.type-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 14px; border: 2px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--white); cursor: pointer; font-size: 14px; font-weight: 600;
+  min-width: 72px; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.type-btn-icon { font-size: 24px; }
+.type-btn.active { border-color: var(--green); background: var(--green-pale); color: var(--green); }
+
+.type-hint {
+  font-size: 13px; color: var(--text-muted);
+  background: var(--cream); border-radius: var(--radius-sm);
+  padding: 8px 12px; margin-bottom: 14px;
+}
+.type-hint-warn { background: #fff3e0; color: #e65100; }
+.type-chip {
+  display: inline-block; margin: 0 3px; padding: 1px 7px;
+  border-radius: 999px; background: var(--green-pale); color: var(--green);
+  font-size: 12px; font-weight: 700;
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  display: flex; align-items: flex-end; z-index: 200;
+}
+.modal-box {
+  background: var(--white); border-radius: var(--radius) var(--radius) 0 0;
+  padding: 24px; width: 100%; max-height: 92vh; overflow-y: auto;
+}
+.modal-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
+.coord-row { display: flex; gap: 8px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.error-msg { color: #c62828; font-size: 14px; margin-top: 6px; }
+</style>

@@ -1,0 +1,322 @@
+<template>
+  <div class="wizard">
+
+    <!-- Ausgewählter Pfad -->
+    <div v-if="path.length || isDone" class="wizard-path">
+      <button class="path-chip" @click="reset">🏠</button>
+      <template v-for="(loc, i) in path" :key="loc.id">
+        <span class="path-sep">›</span>
+        <button class="path-chip" @click="goTo(i)">{{ loc.name }}</button>
+      </template>
+      <template v-if="isDone && finalName">
+        <span class="path-sep">›</span>
+        <span class="path-chip path-chip-done">{{ finalName }}</span>
+      </template>
+    </div>
+
+    <!-- Fertig-Ansicht -->
+    <div v-if="isDone" class="wizard-done">
+      <div class="wizard-done-label">📍 Lagerort</div>
+      <div class="wizard-done-value">{{ breadcrumb }}</div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:10px" @click="reset">Ändern</button>
+    </div>
+
+    <!-- Aktuelle Frage -->
+    <template v-else>
+      <div class="wizard-question">{{ currentQuestion }}</div>
+
+      <div v-if="noLocationsAtAll" class="wizard-empty">
+        Noch keine Orte angelegt — bitte zuerst unter "Orte" Standorte anlegen.
+      </div>
+
+      <div v-else-if="!currentOptions.length" class="wizard-empty">
+        Kein passender Unterbereich vorhanden. Bitte erst unter "Orte" anlegen.
+      </div>
+
+      <div v-else>
+        <!-- "Direkt auf dem Boden" Option -->
+        <button v-if="canPickDirect" class="wizard-opt wizard-opt-direct" @click="pickDirect">
+          ✅ Direkt auf dem Boden (ohne Kiste)
+        </button>
+
+        <!-- Gruppierte Ansicht (Kinder eines Gebäudes) -->
+        <template v-if="showGrouped">
+          <div v-for="group in groupedOptions" :key="group.type" class="wizard-group">
+            <div class="wizard-group-label">{{ group.label }}</div>
+            <div class="wizard-opts">
+              <button
+                v-for="opt in group.options"
+                :key="opt.id"
+                class="wizard-opt"
+                @click="pick(opt)"
+              >
+                <span class="opt-icon">{{ TYPE_ICON[opt.type] || '📌' }}</span>
+                <span class="opt-name">{{ opt.name }}</span>
+                <span v-if="childCount(opt.id)" class="opt-arrow">→</span>
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Flache Ansicht -->
+        <div v-else class="wizard-opts">
+          <button
+            v-for="opt in currentOptions"
+            :key="opt.id"
+            class="wizard-opt"
+            @click="pick(opt)"
+          >
+            <span class="opt-icon">{{ TYPE_ICON[opt.type] || '📌' }}</span>
+            <span class="opt-name">{{ opt.name }}</span>
+            <span v-if="childCount(opt.id)" class="opt-arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </template>
+
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch } from 'vue'
+
+const props = defineProps({
+  modelValue: { type: Number, default: null },
+  locations: { type: Array, default: () => [] },
+})
+const emit = defineEmits(['update:modelValue'])
+
+const TYPE_ICON = {
+  bauwagen: '🚌', schopf: '🏚️', sonstiges: '🏠',
+  regal: '🗄️', schrank: '🪟',
+  fach: '🗃️', boden: '▭',
+  kiste: '📦', wand: '🧱',
+}
+
+const GROUP_LABELS = {
+  regal: 'Regale', schrank: 'Schränke', kiste: 'Kisten', wand: 'Wände', sonstiges: 'Sonstiges',
+}
+
+// Leaf-Typen: Items landen direkt hier, kein weiteres Navigieren
+const LEAF_TYPES = new Set(['kiste', 'wand'])
+
+const path = ref([])       // Navigation-Pfad (ohne das finale Element)
+const isDone = ref(false)
+const finalName = ref('')
+
+// Kinder eines Location-Knotens
+function getChildren(parentId) {
+  return props.locations.filter(l => l.parent_id === parentId)
+}
+function childCount(id) {
+  return getChildren(id).length
+}
+
+const currentParent = computed(() => path.value.at(-1) ?? null)
+const currentParentType = computed(() => currentParent.value?.type ?? null)
+const currentParentId = computed(() => currentParent.value?.id ?? null)
+const currentOptions = computed(() => getChildren(currentParentId.value))
+
+// Auf einem Boden kann direkt (ohne Kiste) platziert werden
+const canPickDirect = computed(() => currentParentType.value === 'boden')
+
+// Kinder eines Gebäudes werden nach Typ gruppiert
+const showGrouped = computed(() =>
+  ['bauwagen', 'schopf', 'sonstiges'].includes(currentParentType.value)
+)
+
+const groupedOptions = computed(() => {
+  if (!showGrouped.value) return []
+  const map = new Map()
+  for (const opt of currentOptions.value) {
+    if (!map.has(opt.type)) map.set(opt.type, [])
+    map.get(opt.type).push(opt)
+  }
+  return [...map.entries()].map(([type, options]) => ({
+    type,
+    label: GROUP_LABELS[type] || type,
+    options,
+  }))
+})
+
+const noLocationsAtAll = computed(() =>
+  props.locations.length === 0
+)
+
+const currentQuestion = computed(() => {
+  switch (currentParentType.value) {
+    case null:        return '🏠 Wo befindet sich das Objekt?'
+    case 'bauwagen':  return '📍 Wie ist es im Bauwagen gelagert?'
+    case 'schopf':    return '📍 Wie ist es im Schopf gelagert?'
+    case 'sonstiges': return '📍 Wie ist es dort gelagert?'
+    case 'regal':     return '📂 In welchem Fach?'
+    case 'fach':      return '📋 Auf welchem Boden?'
+    case 'schrank':   return '📋 Auf welchem Boden?'
+    case 'boden':     return '📦 In einer Kiste oder direkt auf dem Boden?'
+    default:          return '📍 Auswählen:'
+  }
+})
+
+const breadcrumb = computed(() => {
+  const parts = path.value.map(l => l.name)
+  if (finalName.value) parts.push(finalName.value)
+  return parts.join(' › ')
+})
+
+function pick(loc) {
+  const children = getChildren(loc.id)
+  const isLeaf = LEAF_TYPES.has(loc.type)
+
+  if (isLeaf || children.length === 0) {
+    // Blatt oder kein weiterer Unterbereich → direkt auswählen
+    finalize(loc)
+  } else {
+    // Tiefer navigieren
+    path.value = [...path.value, loc]
+  }
+}
+
+function pickDirect() {
+  // Boden direkt auswählen (ohne Kiste)
+  finalize(currentParent.value)
+}
+
+function finalize(loc) {
+  finalName.value = loc.name
+  isDone.value = true
+  emit('update:modelValue', loc.id)
+}
+
+function goTo(index) {
+  path.value = path.value.slice(0, index + 1)
+  isDone.value = false
+  finalName.value = ''
+  emit('update:modelValue', null)
+}
+
+function reset() {
+  path.value = []
+  isDone.value = false
+  finalName.value = ''
+  emit('update:modelValue', null)
+}
+
+// Pfad rekonstruieren wenn ein Item bereits einen Lagerort hat (beim Bearbeiten)
+watch(
+  () => [props.modelValue, props.locations.length],
+  ([newId]) => {
+    if (!newId || isDone.value || props.locations.length === 0) return
+    const chain = []
+    let cur = props.locations.find(l => l.id === newId)
+    while (cur) {
+      chain.unshift(cur)
+      cur = cur.parent_id ? props.locations.find(l => l.id === cur.parent_id) : null
+    }
+    if (chain.length) {
+      path.value = chain.slice(0, -1)
+      finalName.value = chain.at(-1).name
+      isDone.value = true
+    }
+  },
+  { immediate: true }
+)
+</script>
+
+<style scoped>
+.wizard {
+  background: var(--cream);
+  border-radius: var(--radius);
+  padding: 16px;
+  border: 1.5px solid var(--border);
+}
+
+/* Breadcrumb-Pfad */
+.wizard-path {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+.path-chip {
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-muted);
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.12s;
+}
+.path-chip:active { opacity: 0.7; }
+.path-chip-done {
+  background: var(--green-pale);
+  color: var(--green);
+  border-color: var(--green);
+  cursor: default;
+}
+.path-sep { color: var(--text-muted); font-size: 16px; }
+
+/* Frage */
+.wizard-question {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  color: var(--text);
+}
+
+/* Gruppen */
+.wizard-group { margin-bottom: 12px; }
+.wizard-group-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+/* Optionen */
+.wizard-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.wizard-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border);
+  background: var(--white);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 54px;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.12s, background 0.12s;
+}
+.wizard-opt:active { border-color: var(--green); background: var(--green-pale); transform: scale(0.97); }
+.wizard-opt-direct {
+  width: 100%;
+  justify-content: center;
+  border-color: var(--green);
+  background: var(--green-pale);
+  color: var(--green);
+  margin-bottom: 6px;
+}
+.opt-icon { font-size: 22px; }
+.opt-name { flex: 1; }
+.opt-arrow { font-size: 16px; color: var(--text-muted); }
+
+/* Fertig */
+.wizard-done { text-align: center; padding: 8px 0; }
+.wizard-done-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+.wizard-done-value { font-size: 18px; font-weight: 700; color: var(--green); margin-top: 4px; }
+
+/* Leer */
+.wizard-empty { font-size: 15px; color: var(--text-muted); padding: 12px 0; }
+</style>
