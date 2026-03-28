@@ -1,0 +1,20 @@
+services:
+  bauwagendb:
+    image: ghcr.io/totosgit/bauwagendb:latest
+    container_name: bauwagendb
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bauwagendb.rule=Host(`blauwagen.aranda-fehrenbach.de`)"
+      - "traefik.http.routers.bauwagendb.entrypoints=websecure"
+      - "traefik.http.routers.bauwagendb.tls.certresolver=letsencrypt"
+      - "traefik.http.services.bauwagendb.loadbalancer.server.port=8000"
+
+networks:
+  proxy:
+    external: true
+    name: proxy
