@@ -294,7 +294,7 @@ onMounted(load)
   background: var(--cream); border-radius: var(--radius-sm);
   padding: 8px 12px; margin-bottom: 14px;
 }
-.type-hint-warn { background: #fff3e0; color: #e65100; }
+.type-hint-warn { background: #2a1800; color: #ffa040; }
 .type-chip {
   display: inline-block; margin: 0 3px; padding: 1px 7px;
   border-radius: 999px; background: var(--green-pale); color: var(--green);

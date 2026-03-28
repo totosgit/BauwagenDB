@@ -51,6 +51,11 @@ export const addTally = (data) => api.post('/tally/', data).then(r => r.data)
 export const deleteTally = (id) => api.delete(`/tally/${id}`)
 export const resetTallies = (gl_id) => api.delete(`/tally/reset/${gl_id}`)
 
+// --- Notizen ---
+export const getNotes = () => api.get('/notes/').then(r => r.data)
+export const createNote = (data) => api.post('/notes/', data).then(r => r.data)
+export const deleteNote = (id) => api.delete(`/notes/${id}`)
+
 export const getLocationsTree = (mode) => api.get('/locations/tree', { params: mode ? { mode } : {} }).then(r => r.data)
 export const getLocations = (mode) => api.get('/locations/', { params: mode ? { mode } : {} }).then(r => r.data)
 export const getLocation = (id) => api.get(`/locations/${id}`).then(r => r.data)

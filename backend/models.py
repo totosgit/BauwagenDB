@@ -86,6 +86,16 @@ class Session(Base):
     created_at = Column(DateTime, default=lambda: datetime.utcnow())
 
 
+class Note(Base):
+    """Notiz mit Autorenname für den Bauwagen."""
+    __tablename__ = "notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    author = Column(String(100), nullable=False)
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=now)
+
+
 class Tally(Base):
     """Einzelner Strich: ein Gruppenleiter hat ein Getränk genommen."""
     __tablename__ = "tallies"

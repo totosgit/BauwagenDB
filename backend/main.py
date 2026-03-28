@@ -10,7 +10,7 @@ from database import engine, IMAGES_DIR, Base
 import models  # noqa: F401 — ensures models are registered
 from models import Session
 from database import get_db
-from routers import items, locations, search, drinks, tally
+from routers import items, locations, search, drinks, tally, notes
 from routers import auth
 
 SESSION_DAYS = 7
@@ -74,6 +74,7 @@ app.include_router(locations.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
 app.include_router(drinks.router, prefix="/api")
 app.include_router(tally.router, prefix="/api")
+app.include_router(notes.router, prefix="/api")
 
 # Serve uploaded images
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
@@ -85,5 +86,7 @@ if os.path.isdir(FRONTEND_DIST):
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_frontend(full_path: str):
-        index = os.path.join(FRONTEND_DIST, "index.html")
-        return FileResponse(index)
+        file_path = os.path.join(FRONTEND_DIST, full_path)
+        if full_path and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))

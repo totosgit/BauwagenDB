@@ -1,25 +1,34 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --green: #2c5f2e;
-  --green-light: #4a8c4d;
-  --green-pale: #e8f5e9;
-  --brown: #6d4c41;
-  --brown-light: #a1887f;
-  --cream: #f5f0e8;
-  --white: #ffffff;
-  --text: #1a1a1a;
-  --text-muted: #666;
-  --border: #d0c8bc;
-  --shadow: 0 2px 8px rgba(0,0,0,0.12);
-  --radius: 12px;
-  --blue: #1565c0;
-  --blue-pale: #e3f2fd;
+  --green:      #1e75c8;
+  --green-light:#3a9ae8;
+  --green-pale: #1a2a3a;
+  --blue:       #1e75c8;
+  --blue-pale:  #1a2a3a;
+
+  --cream:     #121212;
+  --white:     #1e1e1e;
+  --surface-2: #252525;
+  --text:      #f0f0f0;
+  --text-muted:#888888;
+  --border:    #333333;
+  --shadow:    0 2px 8px rgba(0,0,0,0.5);
+  --radius:    12px;
   --radius-sm: 8px;
-  --nav-h: 80px;
+  --nav-h:     80px;
 }
 
-html, body { height: 100%; background: var(--cream); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 18px; }
+html, body {
+  height: 100%;
+  background: #121212;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  color-scheme: dark;
+}
+
+::placeholder { color: var(--text-muted); opacity: 1; }
 
 #app { min-height: 100vh; display: flex; flex-direction: column; }
 
@@ -40,7 +49,7 @@ nav a.router-link-active { color: var(--green); }
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 22px; border-radius: var(--radius-sm); border: none; font-size: 17px; font-weight: 700; cursor: pointer; min-height: 52px; transition: opacity 0.15s, transform 0.1s; -webkit-tap-highlight-color: transparent; }
 .btn:active { transform: scale(0.97); opacity: 0.85; }
 .btn-primary { background: var(--green); color: var(--white); }
-.btn-secondary { background: var(--cream); color: var(--text); border: 1.5px solid var(--border); }
+.btn-secondary { background: var(--surface-2); color: var(--text); border: 1.5px solid var(--border); }
 .btn-danger { background: #c62828; color: var(--white); }
 .btn-icon { padding: 0; border-radius: 50%; width: 52px; height: 52px; justify-content: center; font-size: 22px; }
 .btn-lg { padding: 18px 28px; font-size: 19px; min-height: 60px; }
@@ -64,7 +73,7 @@ textarea { min-height: 100px; resize: vertical; }
 .breadcrumb { font-size: 14px; color: var(--text-muted); }
 
 /* Type badge */
-.type-badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 9px; border-radius: 999px; background: var(--brown-light); color: var(--white); }
+.type-badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 9px; border-radius: 999px; background: #2a3a52; color: #a0c0e0; }
 
 /* Item card row — großzügige Touch-Targets */
 .item-row { display: flex; align-items: center; gap: 14px; padding: 16px; background: var(--white); border-radius: var(--radius-sm); box-shadow: var(--shadow); cursor: pointer; transition: transform 0.1s; -webkit-tap-highlight-color: transparent; min-height: 72px; }
@@ -92,3 +101,29 @@ textarea { min-height: 100px; resize: vertical; }
 /* Drag & Drop */
 .drag-ghost { opacity: 0.3; }
 .drag-chosen { box-shadow: 0 6px 24px rgba(0,0,0,0.22) !important; transform: scale(1.02); }
+
+/* ===== Responsive: kleine Smartphones (iPhone mini, SE) ===== */
+@media (max-width: 390px) {
+  html, body { font-size: 16px; }
+
+  .page { padding: 12px 12px calc(var(--nav-h) + 12px); }
+
+  .page-title { font-size: 22px; }
+  .page-header { margin-bottom: 14px; }
+
+  .card { padding: 14px; }
+
+  .btn { font-size: 15px; padding: 12px 16px; min-height: 48px; }
+  .btn-sm { font-size: 13px; padding: 8px 12px; min-height: 40px; }
+  .btn-lg { font-size: 17px; padding: 14px 20px; min-height: 52px; }
+
+  input, textarea, select { font-size: 16px; padding: 12px 14px; min-height: 48px; }
+
+  .item-row { padding: 12px; min-height: 64px; gap: 10px; }
+  .item-thumb { width: 48px; height: 48px; font-size: 22px; }
+  .item-name { font-size: 16px; }
+  .item-meta { font-size: 13px; }
+
+  nav a { font-size: 10px; gap: 3px; }
+  nav a .icon { font-size: 22px; }
+}

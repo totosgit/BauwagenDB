@@ -7,6 +7,7 @@ import ItemsView from './views/ItemsView.vue'
 import ItemFormView from './views/ItemFormView.vue'
 import ItemDetailView from './views/ItemDetailView.vue'
 import DrinksView from './views/DrinksView.vue'
+import NotesView from './views/NotesView.vue'
 import LoginView from './views/LoginView.vue'
 import './style.css'
 
@@ -22,6 +23,7 @@ const router = createRouter({
     { path: '/items/:id/edit', component: ItemFormView },
     { path: '/locations', component: LocationsView },
     { path: '/drinks', component: DrinksView },
+    { path: '/notes', component: NotesView },
   ]
 })
 

@@ -166,7 +166,7 @@ function onDragEnd(siblings) {
 
 /* Aktionen */
 .loc-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.btn-del { background: #fff0f0; color: #c62828; }
+.btn-del { background: #2a1018; color: #f47070; }
 
 /* Kinder */
 .loc-children {
@@ -178,4 +178,33 @@ function onDragEnd(siblings) {
 /* Drag-Zustände */
 .drag-ghost { opacity: 0.35; background: var(--green-pale) !important; }
 .drag-chosen { box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important; }
+
+@media (max-width: 480px) {
+  .loc-row {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    min-height: unset;
+  }
+  /* Erste Zeile: Handle + Expand + Icon + Name füllen die ganze Breite */
+  .loc-main {
+    order: 1;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .drag-handle { order: 0; }
+  .expand-btn  { order: 0; }
+  /* Zweite Zeile: Aktionen rechtsbündig */
+  .loc-actions {
+    order: 2;
+    flex-basis: 100%;
+    justify-content: flex-end;
+    gap: 6px;
+    padding-left: 80px; /* eingerückt unter dem Namen */
+  }
+  .loc-children {
+    margin-left: 12px;
+    padding-left: 8px;
+  }
+}
 </style>

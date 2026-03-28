@@ -96,8 +96,10 @@ onMounted(async () => {
 
 <style scoped>
 .filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.item-thumb { width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; border-radius: var(--radius); overflow: hidden; background: var(--surface-2); }
+.item-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .aufgebaut-pill {
   display: inline-block; padding: 1px 8px; border-radius: 999px;
-  background: #fff3e0; color: #e65100; font-size: 12px; font-weight: 700; margin-left: 4px;
+  background: #2a1800; color: #ffa040; font-size: 12px; font-weight: 700; margin-left: 4px;
 }
 </style>

@@ -165,3 +165,19 @@ class TallySummary(BaseModel):
     group_leader_name: str
     entries: List[TallySummaryEntry]
     grand_total: int
+
+
+# --- Notizen ---
+
+class NoteCreate(BaseModel):
+    author: str
+    text: str
+
+
+class NoteResponse(BaseModel):
+    id: int
+    author: str
+    text: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

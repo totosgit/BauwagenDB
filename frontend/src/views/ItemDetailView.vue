@@ -94,8 +94,8 @@ onMounted(load)
 </script>
 
 <style scoped>
-.image-area { cursor: pointer; min-height: 200px; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0; }
-.item-image { width: 100%; max-height: 300px; object-fit: cover; border-radius: var(--radius); }
+.image-area { cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 8px; }
+.item-image { max-width: 100%; max-height: 220px; width: auto; object-fit: contain; border-radius: var(--radius); }
 .image-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-muted); padding: 32px; }
 .detail-name { font-size: 24px; font-weight: 700; }
 .detail-row { display: flex; gap: 12px; margin-top: 10px; }
@@ -103,6 +103,6 @@ onMounted(load)
 .aufgebaut-badge {
   display: inline-flex; align-items: center; gap: 6px;
   margin-top: 10px; padding: 6px 14px; border-radius: 999px;
-  background: #fff3e0; color: #e65100; font-size: 14px; font-weight: 700;
+  background: #2a1800; color: #ffa040; font-size: 14px; font-weight: 700;
 }
 </style>

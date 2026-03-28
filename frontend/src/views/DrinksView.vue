@@ -76,14 +76,29 @@
       </div>
 
       <div v-else>
+        <!-- Überblick alle Gruppenleiter (immer oben) -->
+        <div class="section-label">Überblick</div>
+        <div v-for="s in allSummaries" :key="s.group_leader_id" class="card" style="margin-top: 8px; padding: 12px;">
+          <div style="display:flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600;">{{ s.group_leader_name }}</span>
+            <span class="tag">{{ s.grand_total }} Getränke</span>
+          </div>
+          <div v-if="s.entries.length" style="margin-top: 6px; font-size: 13px; color: var(--text-muted);">
+            <span v-for="e in s.entries" :key="e.drink_id" style="margin-right: 10px;">
+              {{ e.drink_emoji || '🥤' }} {{ e.drink_name }}: {{ e.total }}
+            </span>
+          </div>
+        </div>
+
         <!-- GL selector -->
+        <div class="section-label" style="margin-top: 20px;">Strichliste</div>
         <div class="gl-chips">
           <button
             v-for="gl in groupLeaders"
             :key="gl.id"
             class="gl-chip"
             :class="{ active: selectedGL?.id === gl.id }"
-            @click="selectGL(gl)"
+            @click="toggleGL(gl)"
           >{{ gl.name }}</button>
         </div>
 
@@ -93,7 +108,7 @@
             <span class="page-title" style="font-size: 18px;">{{ selectedGL.name }}</span>
             <div style="display: flex; gap: 8px;">
               <button class="btn btn-secondary btn-sm" @click="loadSummary">↻</button>
-              <button class="btn btn-sm" style="background:#fff0f0; color:#c62828"
+              <button class="btn btn-sm" style="background:#2a1018; color:#f47070"
                 @click="doResetGL">Abrechnen</button>
             </div>
           </div>
@@ -115,22 +130,6 @@
           <div class="divider"></div>
           <div style="text-align: right; font-weight: 700;">
             Gesamt: {{ summary?.grand_total ?? 0 }} Getränke
-          </div>
-        </div>
-
-        <!-- All summaries overview -->
-        <div style="margin-top: 20px;">
-          <div class="section-label">Überblick alle Gruppenleiter</div>
-          <div v-for="s in allSummaries" :key="s.group_leader_id" class="card" style="margin-top: 8px; padding: 12px;">
-            <div style="display:flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight: 600;">{{ s.group_leader_name }}</span>
-              <span class="tag">{{ s.grand_total }} Getränke</span>
-            </div>
-            <div v-if="s.entries.length" style="margin-top: 6px; font-size: 13px; color: var(--text-muted);">
-              <span v-for="e in s.entries" :key="e.drink_id" style="margin-right: 10px;">
-                {{ e.drink_emoji || '🥤' }} {{ e.drink_name }}: {{ e.total }}
-              </span>
-            </div>
           </div>
         </div>
       </div>
@@ -200,7 +199,7 @@
             </div>
           </div>
           <button class="btn btn-secondary btn-sm" @click="openDrinkForm(drink)">✏️</button>
-          <button class="btn btn-sm" style="background:#fff0f0; color:#c62828" @click="doDeleteDrink(drink)">🗑️</button>
+          <button class="btn btn-sm" style="background:#2a1018; color:#f47070" @click="doDeleteDrink(drink)">🗑️</button>
         </div>
       </div>
 
@@ -209,7 +208,7 @@
         <div class="section-label">Gruppenleiter verwalten</div>
         <div v-for="gl in groupLeaders" :key="gl.id" class="card" style="margin-top: 8px; padding: 12px; display: flex; align-items: center; gap: 10px;">
           <span style="flex:1; font-weight: 600;">{{ gl.name }}</span>
-          <button class="btn btn-sm" style="background:#fff0f0; color:#c62828" @click="doDeleteGL(gl)">🗑️</button>
+          <button class="btn btn-sm" style="background:#2a1018; color:#f47070" @click="doDeleteGL(gl)">🗑️</button>
         </div>
       </div>
     </div>
@@ -228,7 +227,7 @@ import { generateTallyPDF } from '../utils/tallyPDF.js'
 
 const { mode } = useMode()
 
-const tab = ref('verkauf')
+const tab = ref('gl')
 const loading = ref(false)
 const loadingGL = ref(false)
 
@@ -273,7 +272,11 @@ async function loadGLData() {
   } finally { loadingGL.value = false }
 }
 
-async function selectGL(gl) {
+async function toggleGL(gl) {
+  if (selectedGL.value?.id === gl.id) {
+    selectedGL.value = null
+    return
+  }
   selectedGL.value = gl
   pendingTallies.value = {}
   await loadSummary()
@@ -427,4 +430,15 @@ onMounted(async () => {
 
 .inline-form { margin-bottom: 12px; padding: 14px; }
 .section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; }
+
+@media (max-width: 390px) {
+  .drink-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .drink-card { padding: 12px 6px; }
+  .drink-emoji { font-size: 28px; }
+  .drink-name { font-size: 13px; }
+  .drink-tabs button { font-size: 12px; padding: 10px 4px; }
+  .tally-btn { width: 36px; height: 36px; font-size: 18px; }
+  .gl-chip { padding: 6px 12px; font-size: 13px; }
+  .restock-row { flex-wrap: wrap; }
+}
 </style>

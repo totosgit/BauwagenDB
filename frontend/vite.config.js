@@ -8,8 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Bauwagen DB',
-        short_name: 'BauwagenDB',
+        name: 'Blauwagen Verwaltung',
+        short_name: 'Blauwagen',
         description: 'Lagerverwaltung für den Bauwagen',
         theme_color: '#2c5f2e',
         background_color: '#f5f0e8',
