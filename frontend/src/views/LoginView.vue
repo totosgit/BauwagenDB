@@ -115,7 +115,7 @@ async function submit() {
 }
 .login-input:focus { outline: none; border-color: var(--green); }
 .login-error {
-  margin-top: 14px; color: #f47070;
+  margin-top: 14px; color: var(--rot);
   font-size: 15px; font-weight: 600; line-height: 1.4;
 }
 .login-foot {

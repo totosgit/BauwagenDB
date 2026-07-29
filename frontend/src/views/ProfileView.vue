@@ -88,19 +88,25 @@
 
         <!-- Aktionen -->
         <div class="card" style="margin-top:22px; display:flex; gap:10px; flex-wrap:wrap">
-          <router-link v-if="isAdmin" to="/admin" class="btn btn-secondary">⚙️ Verwaltung</router-link>
-          <button class="btn btn-danger" @click="doLogout">Abmelden</button>
+          <router-link v-if="isAdmin" to="/admin" class="btn btn-secondary">
+            <Icon name="verwaltung" class="icon" />Verwaltung
+          </router-link>
+          <button class="btn btn-danger" @click="doLogout">
+            <Icon name="abmelden" class="icon" />Abmelden
+          </button>
         </div>
       </template>
 
       <div v-else style="margin-top:22px">
-        <button class="btn btn-secondary" @click="$router.back()">← Zurück</button>
+        <button class="btn btn-secondary" @click="$router.back()">
+          <Icon name="zurueck" class="icon" />Zurück
+        </button>
       </div>
     </template>
 
     <div v-else class="empty">
-      <div class="icon">🤷</div>
-      <div>Profil nicht gefunden</div>
+      <Icon name="profil" class="icon" />
+      <div class="hinweis">Profil nicht gefunden</div>
     </div>
   </div>
 </template>
@@ -110,6 +116,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getUser, getGroups, joinGroup, leaveGroup, updateMe } from '../api/index.js'
 import { useAuth } from '../composables/useAuth.js'
+import Icon from '../components/Icon.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -249,5 +256,5 @@ watch(() => route.params.id, load)
 .muted { color: var(--text-muted); font-size: 15px; line-height: 1.4; }
 .hint { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
 .hint.ok { color: var(--green-light); }
-.hint.err { color: #f47070; }
+.hint.err { color: var(--rot); }
 </style>

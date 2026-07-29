@@ -129,13 +129,21 @@ class Group(Base):
 
 
 class Note(Base):
-    """Notiz mit Autorenname für den Bauwagen."""
+    """Notiz für den Bauwagen.
+
+    Der Name kommt jetzt aus dem Konto (created_by). Das alte Freitextfeld
+    author bleibt erhalten, damit Notizen von vor der Konten-Umstellung
+    ihren Namen behalten -- nachtraeglich zuordnen waere geraten.
+    """
     __tablename__ = "notes"
 
     id = Column(Integer, primary_key=True, index=True)
-    author = Column(String(100), nullable=False)
+    author = Column(String(100), nullable=True)
+    created_by = Column(GUID, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     text = Column(Text, nullable=False)
     created_at = Column(DateTime, default=now)
+
+    urheber = relationship("User", foreign_keys=[created_by])
 
 
 class ShoppingItem(Base):
@@ -148,11 +156,16 @@ class ShoppingItem(Base):
     unit = Column(String(50), default="Stück")
     urgency = Column(String(20), default="mittel")  # niedrig | mittel | hoch | dringend
     item_id = Column(Integer, ForeignKey("items.id", ondelete="SET NULL"), nullable=True)
+    # Verweis aufs Konto plus Name als Momentaufnahme: so bleibt sichtbar,
+    # wer es aufgeschrieben hat, auch wenn das Konto später gelöscht wird.
+    created_by = Column(GUID, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    author = Column(String(100), nullable=True)
     notes = Column(Text, nullable=True)
     erledigt = Column(Boolean, default=False, server_default="0")
     created_at = Column(DateTime, default=now)
 
     item = relationship("Item", foreign_keys=[item_id])
+    urheber = relationship("User", foreign_keys=[created_by])
 
 
 class Tally(Base):

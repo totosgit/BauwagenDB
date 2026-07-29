@@ -7,7 +7,7 @@
       <!-- Erfolgsmeldung statt Formular -->
       <template v-if="done">
         <div class="done-box">
-          <div class="done-icon">📮</div>
+          <Icon name="warten" class="done-icon" />
           <p>{{ doneMessage }}</p>
         </div>
         <router-link to="/login" class="btn btn-primary btn-lg" style="width:100%; margin-top:8px">
@@ -74,6 +74,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { register } from '../api/index.js'
+import Icon from '../components/Icon.vue'
 
 const form = ref({ display_name: '', username: '', password: '', password2: '' })
 const error = ref('')
@@ -154,7 +155,7 @@ async function submit() {
 }
 .login-input:focus { outline: none; border-color: var(--green); }
 .login-error {
-  margin-top: 8px; color: #f47070;
+  margin-top: 8px; color: var(--rot);
   font-size: 15px; font-weight: 600; line-height: 1.4;
 }
 .login-foot { margin-top: 22px; font-size: 15px; color: var(--text-muted); }

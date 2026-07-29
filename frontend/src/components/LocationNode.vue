@@ -3,7 +3,7 @@
     <div class="loc-row card">
 
       <!-- Drag-Handle -->
-      <span class="drag-handle" title="Verschieben">⠿</span>
+      <span class="drag-handle" title="Verschieben"><Icon name="griff" class="icon" /></span>
 
       <!-- Expand-Toggle -->
       <button
@@ -11,20 +11,20 @@
         :class="{ 'no-children': !node.children?.length }"
         @click.stop="toggle(node.id)"
       >
-        <span v-if="node.children?.length">{{ expanded ? '▾' : '▸' }}</span>
+        <Icon v-if="node.children?.length" :name="expanded ? 'ab' : 'weiter'" class="icon" />
         <span v-else class="leaf-dot">·</span>
       </button>
 
       <!-- Icon + Name + Meta -->
       <div class="loc-main" @click="node.children?.length && toggle(node.id)">
-        <span class="type-icon">{{ TYPE_ICON[node.type] || '📌' }}</span>
+        <span class="type-icon"><Icon :name="typIcon(node.type)" class="icon" /></span>
         <div class="loc-info">
           <div class="loc-name">{{ node.name }}</div>
           <div class="loc-meta">
-            <span class="type-badge">{{ TYPE_LABEL[node.type] || node.type }}</span>
+            <span class="type-badge">{{ typLabel(node.type) }}</span>
             <span v-if="node.item_count" class="meta-pill">{{ node.item_count }} Dinge</span>
             <span v-if="node.children?.length" class="meta-pill meta-children">
-              {{ node.children.length }} {{ expanded ? '▾' : '▸' }}
+              {{ node.children.length }}<Icon :name="expanded ? 'ab' : 'weiter'" class="icon" />
             </span>
           </div>
         </div>
@@ -38,8 +38,8 @@
           @click="handlers.onCreate(node.id)"
           title="Unterbereich anlegen"
         >+</button>
-        <button class="btn btn-secondary btn-sm" @click="handlers.onEdit(node)">✏️</button>
-        <button class="btn btn-sm btn-del" @click="handlers.onDelete(node)">🗑️</button>
+        <button class="btn btn-secondary btn-sm" @click="handlers.onEdit(node)" aria-label="Bearbeiten"><Icon name="stift" class="icon" /></button>
+        <button class="btn btn-sm btn-del" @click="handlers.onDelete(node)" aria-label="Löschen"><Icon name="muell" class="icon" /></button>
       </div>
     </div>
 
@@ -66,6 +66,8 @@
 import { inject, computed } from 'vue'
 import draggable from 'vuedraggable'
 import { useExpanded } from '../composables/useExpanded.js'
+import Icon from './Icon.vue'
+import { typIcon, typLabel } from '../utils/orttypen.js'
 
 const props = defineProps({
   node: { type: Object, required: true },
@@ -85,18 +87,6 @@ const VALID_CHILDREN = {
   boden:     ['kiste'],
   kiste:     [],
   wand:      [],
-}
-const TYPE_ICON = {
-  bauwagen: '🚌', schopf: '🏚️', sonstiges: '🏠',
-  regal: '🗄️', schrank: '🪟',
-  fach: '🗃️', boden: '▭',
-  kiste: '📦', wand: '🧱',
-}
-const TYPE_LABEL = {
-  bauwagen: 'Bauwagen', schopf: 'Schopf', sonstiges: 'Sonstiges',
-  regal: 'Regal', schrank: 'Schrank',
-  fach: 'Fach', boden: 'Boden',
-  kiste: 'Kiste', wand: 'Wand',
 }
 
 const canHaveChildren = computed(
@@ -166,7 +156,7 @@ function onDragEnd(siblings) {
 
 /* Aktionen */
 .loc-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.btn-del { background: #2a1018; color: #f47070; }
+.btn-del { background: transparent; color: var(--rot); box-shadow: inset 0 0 0 1.5px rgba(158,58,34,.5); }
 
 /* Kinder */
 .loc-children {

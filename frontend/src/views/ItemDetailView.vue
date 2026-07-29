@@ -1,19 +1,23 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <button class="btn btn-secondary btn-sm" @click="$router.back()">← Zurück</button>
-      <button class="btn btn-secondary btn-sm" @click="$router.push('/items/' + id + '/edit')">Bearbeiten</button>
+      <button class="btn btn-secondary btn-sm" @click="$router.back()">
+        <Icon name="zurueck" class="icon" />Zurück
+      </button>
+      <button class="btn btn-secondary btn-sm" @click="$router.push('/items/' + id + '/edit')">
+        <Icon name="stift" class="icon" />Bearbeiten
+      </button>
     </div>
 
-    <div v-if="loading" class="loading">Laden ...</div>
+    <div v-if="loading" class="loading">Laden …</div>
 
     <template v-else-if="item">
-      <!-- Image -->
-      <div class="image-area card" @click="triggerImageUpload">
+      <!-- Foto -->
+      <div class="bildflaeche card" @click="triggerImageUpload">
         <img v-if="item.image_path" :src="'/images/' + item.image_path" :alt="item.name" class="item-image" />
-        <div v-else class="image-placeholder">
-          <span style="font-size:48px">📷</span>
-          <div>Foto hinzufügen</div>
+        <div v-else class="bild-leer">
+          <Icon name="kamera" class="icon gross" />
+          <div class="hinweis">Foto aufnehmen</div>
         </div>
         <input ref="fileInput" type="file" accept="image/*" capture="environment" style="display:none" @change="onFileChange" />
       </div>
@@ -22,21 +26,24 @@
         <div class="detail-name">{{ item.name }}</div>
         <div v-if="item.category" style="margin-top: 6px;"><span class="tag">{{ item.category }}</span></div>
 
-        <!-- Aufgebaut-Badge -->
-        <div v-if="item.aufgebaut && mode !== 'jahr'" class="aufgebaut-badge">
-          🔧 Aufgebaut<span v-if="item.aufgebaut_notiz"> · {{ item.aufgebaut_notiz }}</span>
+        <div v-if="item.aufgebaut && mode !== 'jahr'" class="aufgebaut">
+          <Icon name="dinge" class="icon" />
+          Aufgebaut<span v-if="item.aufgebaut_notiz"> · {{ item.aufgebaut_notiz }}</span>
         </div>
 
         <div class="divider"></div>
-        <div class="detail-row"><span class="detail-label">Menge</span><span>{{ item.quantity }} {{ item.unit }}</span></div>
+        <div class="detail-row">
+          <span class="detail-label">Menge</span>
+          <span class="menge">{{ item.quantity }} {{ item.unit }}</span>
+        </div>
 
         <!-- Lagerorte -->
         <div v-if="item.breadcrumb_lager" class="detail-row">
-          <span class="detail-label">🏕️ Lager</span>
+          <span class="detail-label"><Icon name="zelt" class="icon" />Lager</span>
           <span class="breadcrumb">{{ item.breadcrumb_lager }}</span>
         </div>
         <div v-if="item.breadcrumb_jahr" class="detail-row">
-          <span class="detail-label">🏠 Jahr</span>
+          <span class="detail-label"><Icon name="haus" class="icon" />Jahr</span>
           <span class="breadcrumb">{{ item.breadcrumb_jahr }}</span>
         </div>
 
@@ -80,11 +87,17 @@
       </div>
 
       <div style="display:flex; gap:8px; margin-top: 16px;" v-if="!showShoppingForm">
-        <button class="btn btn-secondary" style="flex:1" @click="openShoppingForm">🛒 Einkaufsliste</button>
-        <button class="btn btn-danger" style="flex:1" @click="doDelete">Löschen</button>
+        <button class="btn btn-secondary" style="flex:1" @click="openShoppingForm">
+          <Icon name="einkauf" class="icon" />Einkauf
+        </button>
+        <button class="btn btn-danger" style="flex:1" @click="doDelete">
+          <Icon name="muell" class="icon" />Löschen
+        </button>
       </div>
       <div v-if="showShoppingForm" style="margin-top:8px;">
-        <button class="btn btn-danger" style="width:100%" @click="doDelete">Löschen</button>
+        <button class="btn btn-danger" style="width:100%" @click="doDelete">
+          <Icon name="muell" class="icon" />Löschen
+        </button>
       </div>
     </template>
   </div>
@@ -95,6 +108,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getItem, deleteItem, uploadImage, createShoppingItem } from '../api/index.js'
 import { useMode } from '../composables/useMode.js'
+import Icon from '../components/Icon.vue'
 
 const { mode } = useMode()
 
@@ -154,26 +168,64 @@ onMounted(load)
 </script>
 
 <style scoped>
-.image-area { cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 8px; }
-.item-image { max-width: 100%; max-height: 220px; width: auto; object-fit: contain; border-radius: var(--radius); }
-.image-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-muted); padding: 32px; }
-.detail-name { font-size: 24px; font-weight: 700; }
-.detail-row { display: flex; gap: 12px; margin-top: 10px; }
-.detail-label { font-size: 13px; font-weight: 700; color: var(--text-muted); min-width: 100px; text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0; }
-.aufgebaut-badge {
+.bildflaeche {
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; padding: 8px;
+}
+.item-image {
+  max-width: 100%; max-height: 240px; width: auto;
+  object-fit: contain; border-radius: var(--radius-sm);
+}
+.bild-leer {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  color: var(--tinte-blass); padding: 34px 20px;
+}
+.bild-leer .gross { font-size: 40px; opacity: 0.6; }
+.bild-leer .hinweis { font-family: var(--schrift-hand); font-size: 19px; }
+
+.detail-name {
+  font-family: var(--schrift-stempel);
+  font-size: 22px; letter-spacing: 0.02em;
+  color: var(--gebrannt);
+  line-height: 1.2;
+}
+.detail-row { display: flex; gap: 12px; margin-top: 10px; align-items: baseline; }
+.detail-label {
+  font-family: var(--schrift-stempel);
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--tinte-blass);
+  min-width: 92px; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.detail-label .icon { font-size: 13px; }
+
+.aufgebaut {
   display: inline-flex; align-items: center; gap: 6px;
-  margin-top: 10px; padding: 6px 14px; border-radius: 999px;
-  background: #2a1800; color: #ffa040; font-size: 14px; font-weight: 700;
+  margin-top: 10px; padding: 5px 12px;
+  border: 1.5px solid rgba(158, 58, 34, 0.5);
+  border-radius: var(--radius-sm);
+  color: var(--rot);
+  font-family: var(--schrift-stempel);
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
 }
 
-.urgency-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+/* Dringlichkeit wie auf der Einkaufsliste: gestempelt, nicht bunt */
+.urgency-row { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 4px; }
 .urgency-btn {
-  padding: 6px 12px; border-radius: 8px; border: 2px solid var(--border);
-  background: var(--white); color: var(--text-muted); font-size: 13px; font-weight: 600;
+  padding: 8px 12px; min-height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--linie);
+  background: transparent; color: var(--tinte-blass);
+  font-family: var(--schrift-stempel);
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
-.urgency-btn.active.niedrig  { background: #1a3a1a; border-color: #4caf50; color: #4caf50; }
-.urgency-btn.active.mittel   { background: #1a2e3a; border-color: #2196f3; color: #2196f3; }
-.urgency-btn.active.hoch     { background: #3a2a1a; border-color: #ff9800; color: #ff9800; }
-.urgency-btn.active.dringend { background: #3a1a1a; border-color: #f44336; color: #f44336; }
+.urgency-btn.active {
+  color: var(--gebrannt); border-color: var(--gebrannt);
+  background: rgba(53, 29, 8, 0.07);
+}
+.urgency-btn.active.dringend {
+  color: var(--rot); border-color: var(--rot); background: var(--rot-blass);
+}
 </style>

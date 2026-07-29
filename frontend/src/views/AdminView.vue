@@ -18,15 +18,17 @@
     <!-- ===== FREIGABEN ===== -->
     <template v-else-if="tab === 'freigaben'">
       <div v-if="!pending.length" class="empty">
-        <div class="icon">✅</div>
-        <div>Keine offenen Registrierungen</div>
+        <Icon name="haken" class="icon" />
+        <div class="hinweis">Keine offenen Registrierungen</div>
       </div>
       <div v-for="u in pending" :key="u.id" class="card row-card">
         <div style="flex:1; min-width:0">
           <div class="row-name">{{ u.display_name }}</div>
           <div class="row-meta">@{{ u.username }}</div>
         </div>
-        <button class="btn btn-primary btn-sm" @click="approve(u)">Freigeben</button>
+        <button class="btn btn-primary btn-sm" @click="approve(u)">
+          <Icon name="haken" class="icon" />Freigeben
+        </button>
         <button class="btn btn-sm btn-reject" @click="removeUser(u)">Ablehnen</button>
       </div>
     </template>
@@ -49,7 +51,9 @@
             @click="toggleAdmin(u)"
           >{{ u.is_superuser ? 'Admin entziehen' : 'Zum Admin' }}</button>
           <button class="btn btn-sm btn-secondary" @click="askPassword(u)">Passwort</button>
-          <button v-if="u.id !== me.id" class="btn btn-sm btn-reject" @click="removeUser(u)">🗑️</button>
+          <button v-if="u.id !== me.id" class="btn btn-sm btn-reject" @click="removeUser(u)" aria-label="Konto löschen">
+            <Icon name="muell" class="icon" />
+          </button>
         </div>
       </div>
     </template>
@@ -73,7 +77,9 @@
           <div class="row-name">{{ g.emoji }} {{ g.name }}</div>
           <div class="row-meta">{{ g.member_count }} {{ g.member_count === 1 ? 'Mitglied' : 'Mitglieder' }}</div>
         </div>
-        <button class="btn btn-sm btn-reject" @click="removeGroup(g)">🗑️</button>
+        <button class="btn btn-sm btn-reject" @click="removeGroup(g)" aria-label="Gruppe löschen">
+          <Icon name="muell" class="icon" />
+        </button>
       </div>
     </template>
   </div>
@@ -86,6 +92,7 @@ import {
   getGroups, createGroup, deleteGroup,
 } from '../api/index.js'
 import { useAuth } from '../composables/useAuth.js'
+import Icon from '../components/Icon.vue'
 
 const { user: me } = useAuth()
 
@@ -171,7 +178,7 @@ onMounted(load)
 }
 .admin-tabs button.active { color: var(--green); border-bottom-color: var(--green); }
 .pill {
-  background: #c62828; color: #fff; border-radius: 999px;
+  background: var(--rot); color: #fff; border-radius: 999px;
   padding: 1px 8px; font-size: 12px; font-weight: 800;
 }
 
@@ -183,7 +190,7 @@ onMounted(load)
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
 .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.btn-reject { background: #2a1018; color: #f47070; }
+.btn-reject { background: transparent; color: var(--rot); box-shadow: inset 0 0 0 1.5px rgba(158,58,34,.5); }
 .mini-badge {
   background: var(--green-pale); color: var(--green-light);
   padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 700;
@@ -197,7 +204,7 @@ onMounted(load)
 .new-group input { flex: 1; min-width: 0; }
 .emoji-input { flex: 0 0 68px; text-align: center; }
 .muted { color: var(--text-muted); font-size: 15px; line-height: 1.4; }
-.hint.err { color: #f47070; font-size: 15px; font-weight: 600; }
+.hint.err { color: var(--rot); font-size: 15px; font-weight: 600; }
 
 @media (max-width: 480px) {
   .row-actions { width: 100%; }

@@ -265,6 +265,9 @@ class ShoppingItemResponse(BaseModel):
     notes: Optional[str] = None
     erledigt: bool
     created_at: datetime
+    # Wer hat es aufgeschrieben
+    author: str = "unbekannt"
+    created_by: Optional[uuid.UUID] = None
 
     model_config = {"from_attributes": True}
 
@@ -272,13 +275,14 @@ class ShoppingItemResponse(BaseModel):
 # --- Notizen ---
 
 class NoteCreate(BaseModel):
-    author: str
-    text: str
+    # Der Name kommt aus dem angemeldeten Konto, nicht aus dem Formular.
+    text: str = Field(min_length=1, max_length=2000)
 
 
 class NoteResponse(BaseModel):
     id: int
     author: str
+    created_by: Optional[uuid.UUID] = None
     text: str
     created_at: datetime
 

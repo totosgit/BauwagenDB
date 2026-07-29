@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <button class="btn btn-secondary btn-sm" @click="$router.back()">← Zurück</button>
+      <button class="btn btn-secondary btn-sm" @click="$router.back()"><Icon name="zurueck" class="icon" />Zurück</button>
       <h1 class="page-title">{{ isEdit ? 'Bearbeiten' : 'Neu' }}</h1>
     </div>
 
@@ -49,13 +49,13 @@
       <!-- Lagerort Auf dem Lager -->
       <div class="card loc-card" style="margin-top: 14px;">
         <div class="loc-card-header">
-          <span class="loc-card-title">🏕️ Auf dem Lager</span>
+          <span class="loc-card-title"><Icon name="zelt" class="icon" />Auf dem Lager</span>
         </div>
 
         <!-- Aufgebaut-Toggle -->
         <div class="aufgebaut-row" @click="form.aufgebaut = !form.aufgebaut">
           <div class="aufgebaut-check" :class="{ active: form.aufgebaut }">
-            <span v-if="form.aufgebaut">✓</span>
+            <Icon v-if="form.aufgebaut" name="haken" class="icon" />
           </div>
           <div>
             <div class="aufgebaut-label">Aufgebaut während dem Lager</div>
@@ -81,7 +81,7 @@
       <!-- Lagerort Unter dem Jahr -->
       <div class="card" style="margin-top: 14px;">
         <div class="loc-card-header">
-          <span class="loc-card-title">🏠 Unter dem Jahr</span>
+          <span class="loc-card-title"><Icon name="haus" class="icon" />Unter dem Jahr</span>
         </div>
         <div style="margin-top: 12px;">
           <LocationWizard
@@ -110,7 +110,7 @@
       <div v-if="error" class="error-msg" style="margin-top: 10px;">{{ error }}</div>
 
       <button type="submit" class="btn btn-primary btn-lg" style="width:100%; margin-top:14px" :disabled="saving">
-        {{ saving ? 'Speichern ...' : '💾 Speichern' }}
+        <Icon name="speichern" class="icon" />{{ saving ? 'Speichern …' : 'Speichern' }}
       </button>
     </form>
   </div>
@@ -121,6 +121,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getItem, createItem, updateItem, getLocations } from '../api/index.js'
 import LocationWizard from '../components/LocationWizard.vue'
+import Icon from '../components/Icon.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -175,7 +176,7 @@ onMounted(load)
 
 <style scoped>
 .qty-row { display: flex; gap: 12px; }
-.error-msg { color: #c62828; font-size: 15px; }
+.error-msg { color: var(--rot); font-size: 15px; }
 
 .loc-card-header { margin-bottom: 4px; }
 .loc-card-title { font-size: 15px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-size: 13px; }

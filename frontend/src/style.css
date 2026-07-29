@@ -1,129 +1,456 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
-  --green:      #1e75c8;
-  --green-light:#3a9ae8;
-  --green-pale: #1a2a3a;
-  --blue:       #1e75c8;
-  --blue-pale:  #1a2a3a;
+/* ══════════════════════════════════════════════════════════════════
+   Drei Materialien, klar getrennt:
+   - Kopf- und Fußleiste: Holz, alles darauf wirkt eingebrannt
+   - dazwischen: ein durchgehendes Pergamentblatt mit Wasserzeichen
+   - Handschrift für alles, was von Hand wäre: Orte, Namen, Striche
 
-  --cream:     #121212;
-  --white:     #1e1e1e;
-  --surface-2: #252525;
-  --text:      #f0f0f0;
-  --text-muted:#888888;
-  --border:    #333333;
-  --shadow:    0 2px 8px rgba(0,0,0,0.5);
-  --radius:    12px;
-  --radius-sm: 8px;
-  --nav-h:     80px;
+   Bewusst nur ein heller Look, keine Dunkelvariante.
+   Gebaut fürs Handy -- am Rechner wird die App praktisch nie benutzt.
+   ══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Holz ── */
+  --holz-hell:   #8a5c33;
+  --holz-mittel: #7a5230;
+  --holz-tief:   #6a4728;
+  --gebrannt:    #351d08;
+  /* aufgeworfene Holzfaser am Rand eines Brandzeichens */
+  --kerbe:       rgba(255, 216, 170, 0.26);
+  --holz:
+    repeating-linear-gradient(88deg,   rgba(53,29,8,.11) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(91deg,   rgba(53,29,8,.07) 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(89.4deg, rgba(255,225,190,.05) 0 3px, transparent 3px 22px),
+    linear-gradient(175deg, var(--holz-hell) 0%, var(--holz-mittel) 45%, #825735 100%);
+
+  /* ── Pergament ── */
+  --pergament:   #ece0c2;
+  --pergament-2: #e4d5b2;
+  --blatt:       #f4ecd7;
+  --blatt-tief:  #e8dcc0;
+  --pergament-flaeche:
+    radial-gradient(70% 45% at 18% 12%, rgba(255,250,232,.55), transparent 60%),
+    radial-gradient(60% 40% at 88% 30%, rgba(196,172,126,.30), transparent 62%),
+    radial-gradient(80% 50% at 40% 92%, rgba(196,172,126,.26), transparent 65%),
+    linear-gradient(168deg, var(--pergament) 0%, var(--pergament-2) 55%, var(--pergament) 100%);
+
+  /* ── Tinte ── */
+  --tinte:       #3a3226;
+  --tinte-blass: #7a705d;
+  --linie:       rgba(53, 29, 8, 0.16);
+  --linie-stark: rgba(53, 29, 8, 0.32);
+
+  /* ── Signalfarben (sparsam) ── */
+  --rot:         #9e3a22;
+  --rot-blass:   rgba(158, 58, 34, 0.10);
+  --gruen:       #55703f;
+
+  /* ── Schriftrollen ──
+     Vom Gerät, nichts wird nachgeladen: im Lager gibt es kein Netz.
+     Auf iPhone/iPad sitzen alle drei, sonst greifen Ersatzschriften. */
+  --schrift-stempel: 'American Typewriter', 'Courier New', ui-monospace, monospace;
+  --schrift-hand:    'Bradley Hand', 'Noteworthy', 'Segoe Print', 'Comic Sans MS', cursive;
+  --schrift-text:    -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+
+  --radius:    3px;
+  --radius-sm: 2px;
+  --nav-h:     74px;
+  --schatten:  0 2px 6px rgba(48, 26, 8, 0.24);
+
+  /* ── Altlasten-Namen ──
+     Die Ansichten benutzen an vielen Stellen noch diese Variablen.
+     Sie zeigen jetzt auf die neuen Materialien, damit der Umbau nicht
+     jede einzelne Zeile anfassen muss. */
+  --cream:      var(--pergament);
+  --white:      var(--blatt);
+  --surface-2:  var(--blatt-tief);
+  --text:       var(--tinte);
+  --text-muted: var(--tinte-blass);
+  --border:     var(--linie);
+  --shadow:     var(--schatten);
+  --green:      var(--gebrannt);
+  --green-light: var(--holz-mittel);
+  --green-pale: rgba(53, 29, 8, 0.08);
+  --blue:       var(--gebrannt);
+  --blue-pale:  rgba(53, 29, 8, 0.08);
 }
 
 html, body {
   height: 100%;
-  background: #121212;
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 18px;
-  color-scheme: dark;
+  background: var(--pergament);
+  color: var(--tinte);
+  font-family: var(--schrift-text);
+  font-size: 17px;
+  line-height: 1.45;
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
 }
 
-::placeholder { color: var(--text-muted); opacity: 1; }
+body {
+  background-image: var(--pergament-flaeche);
+  background-attachment: fixed;
+}
+
+::placeholder { color: var(--tinte-blass); opacity: 1; }
 
 #app { min-height: 100vh; display: flex; flex-direction: column; }
 
-/* Nav — große Touch-Targets */
-nav { position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-h); background: var(--white); border-top: 1px solid var(--border); display: flex; z-index: 100; box-shadow: 0 -2px 8px rgba(0,0,0,0.08); }
-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; text-decoration: none; color: var(--text-muted); font-size: 12px; font-weight: 600; transition: color 0.15s; -webkit-tap-highlight-color: transparent; }
-nav a .icon { font-size: 30px; }
-nav a.router-link-active { color: var(--green); }
+/* ══ Schriftrollen als Hilfsklassen ══════════════════════════════ */
+.stempel {
+  font-family: var(--schrift-stempel);
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+}
+.hand { font-family: var(--schrift-hand); }
 
-/* Page layout */
-.page { flex: 1; padding: 16px 16px calc(var(--nav-h) + 16px); max-width: 800px; margin: 0 auto; width: 100%; }
+/* Alles, was auf Holz liegt: dunkel plus heller Grat unten */
+.eingebrannt {
+  color: var(--gebrannt);
+  text-shadow: 0 1px 0 var(--kerbe);
+}
+.eingebrannt .icon { filter: drop-shadow(0 1px 0 var(--kerbe)); }
 
-/* Cards */
-.card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
-.card + .card { margin-top: 14px; }
+/* ══ Untere Holzleiste ═══════════════════════════════════════════ */
+nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: var(--nav-h);
+  background: var(--holz);
+  display: flex;
+  z-index: 100;
+  box-shadow: 0 -3px 10px rgba(40, 22, 6, 0.42), inset 0 2px 5px rgba(40, 22, 6, 0.35);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+nav a {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px;
+  text-decoration: none;
+  font-family: var(--schrift-stempel);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(53, 29, 8, 0.6);
+  text-shadow: 0 1px 0 rgba(255, 216, 170, 0.16);
+  -webkit-tap-highlight-color: transparent;
+}
+nav a .icon {
+  font-size: 22px;
+  filter: drop-shadow(0 1px 0 rgba(255, 216, 170, 0.16));
+}
+nav a.router-link-active {
+  color: var(--gebrannt);
+  text-shadow: 0 1px 0 var(--kerbe);
+  background: rgba(25, 12, 2, 0.16);
+  box-shadow: inset 0 2px 5px rgba(25, 12, 2, 0.4);
+}
+nav a.router-link-active .icon { filter: drop-shadow(0 1px 0 var(--kerbe)); }
+/* Nicht nutzbar im aktuellen Modus -- sichtbar ausgegraut statt versteckt */
+nav a.gesperrt { opacity: 0.32; pointer-events: none; }
 
-/* Buttons — min 52px Höhe für einfaches Tippen */
-.btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 22px; border-radius: var(--radius-sm); border: none; font-size: 17px; font-weight: 700; cursor: pointer; min-height: 52px; transition: opacity 0.15s, transform 0.1s; -webkit-tap-highlight-color: transparent; }
-.btn:active { transform: scale(0.97); opacity: 0.85; }
-.btn-primary { background: var(--green); color: var(--white); }
-.btn-secondary { background: var(--surface-2); color: var(--text); border: 1.5px solid var(--border); }
-.btn-danger { background: #c62828; color: var(--white); }
-.btn-icon { padding: 0; border-radius: 50%; width: 52px; height: 52px; justify-content: center; font-size: 22px; }
-.btn-lg { padding: 18px 28px; font-size: 19px; min-height: 60px; }
-.btn-sm { padding: 10px 16px; font-size: 15px; min-height: 44px; }
+/* ══ Seite ═══════════════════════════════════════════════════════ */
+.page {
+  flex: 1;
+  padding: 14px 15px calc(var(--nav-h) + 20px);
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
 
-/* Forms — große Felder */
-.form-group { margin-bottom: 18px; }
-label { display: block; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-input, textarea, select { width: 100%; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 18px; background: var(--white); color: var(--text); transition: border-color 0.15s; -webkit-appearance: none; min-height: 52px; }
-input:focus, textarea:focus, select:focus { outline: none; border-color: var(--green); }
-textarea { min-height: 100px; resize: vertical; }
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.page-title {
+  font-family: var(--schrift-stempel);
+  font-size: 21px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--gebrannt);
+  font-weight: 400;
+}
 
-/* Page header */
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-.page-title { font-size: 26px; font-weight: 700; color: var(--text); }
+/* Abschnittsmarke mit ausklingender Linie statt Kasten */
+.section-label {
+  font-family: var(--schrift-stempel);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 10.5px;
+  color: var(--tinte-blass);
+  margin: 18px 0 6px;
+  display: flex; align-items: center; gap: 9px;
+}
+.section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--linie);
+}
 
-/* Tags */
-.tag { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--green-pale); color: var(--green); font-size: 13px; font-weight: 700; }
+/* ══ Blätter ═════════════════════════════════════════════════════
+   Ein eigenes Blatt nur, wo es inhaltlich eines ist. Sonst liegt der
+   Inhalt direkt auf dem Pergament. */
+.card {
+  background: var(--blatt);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--schatten);
+  padding: 15px 16px;
+}
+.card + .card { margin-top: 12px; }
 
-/* Breadcrumb */
-.breadcrumb { font-size: 14px; color: var(--text-muted); }
+/* Zettel mit Klebestreifen -- für Notizen und Strichlisten */
+.geheftet { position: relative; padding-top: 20px; }
+.geheftet::before {
+  content: '';
+  position: absolute; top: -7px; left: 50%;
+  width: 56px; height: 15px;
+  transform: translateX(-50%) rotate(-1.8deg);
+  background: rgba(212, 190, 148, 0.9);
+  box-shadow: 0 1px 2px rgba(48, 26, 8, 0.3);
+}
 
-/* Type badge */
-.type-badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 9px; border-radius: 999px; background: #2a3a52; color: #a0c0e0; }
+/* ══ Knöpfe: gebranntes Holzschild ═══════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: var(--radius);
+  border: none;
+  font-family: var(--schrift-stempel);
+  font-size: 13.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  min-height: 52px;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s, opacity 0.15s;
+}
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--gebrannt); outline-offset: 2px; }
+.btn .icon { font-size: 17px; }
 
-/* Item card row — großzügige Touch-Targets */
-.item-row { display: flex; align-items: center; gap: 14px; padding: 16px; background: var(--white); border-radius: var(--radius-sm); box-shadow: var(--shadow); cursor: pointer; transition: transform 0.1s; -webkit-tap-highlight-color: transparent; min-height: 72px; }
-.item-row:active { transform: scale(0.98); }
-.item-row + .item-row { margin-top: 10px; }
-.item-thumb { width: 56px; height: 56px; border-radius: var(--radius-sm); object-fit: cover; background: var(--cream); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+.btn-primary {
+  background: var(--holz);
+  color: #f7e2c0;
+  text-shadow: 0 -1px 0 rgba(25, 12, 2, 0.5);
+  box-shadow: 0 2px 0 rgba(30, 16, 4, 0.5), inset 0 1px 0 rgba(255, 216, 170, 0.22);
+}
+.btn-primary:active { box-shadow: 0 1px 0 rgba(30, 16, 4, 0.5); }
+.btn-primary .icon { filter: drop-shadow(0 -1px 0 rgba(25, 12, 2, 0.4)); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--tinte);
+  box-shadow: inset 0 0 0 1.5px var(--linie-stark);
+}
+.btn-danger {
+  background: transparent;
+  color: var(--rot);
+  box-shadow: inset 0 0 0 1.5px rgba(158, 58, 34, 0.55);
+}
+.btn-icon {
+  padding: 0; border-radius: 50%;
+  width: 48px; height: 48px; min-height: 48px;
+}
+.btn-lg { padding: 17px 24px; font-size: 15px; min-height: 58px; }
+.btn-sm { padding: 9px 14px; font-size: 11.5px; min-height: 42px; }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Runder Strichknopf (Strichliste) */
+.rund {
+  width: 38px; height: 38px; min-height: 38px;
+  border-radius: 50%; padding: 0;
+  border: 2px solid var(--tinte);
+  background: transparent;
+  color: var(--tinte);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rund.voll { background: var(--tinte); color: var(--blatt); }
+.rund:disabled { opacity: 0.25; }
+
+/* ══ Formulare: Linien statt Kästen ══════════════════════════════ */
+.form-group { margin-bottom: 16px; }
+label {
+  display: block;
+  font-family: var(--schrift-stempel);
+  font-size: 10.5px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--tinte-blass);
+  margin-bottom: 5px;
+}
+input, textarea, select {
+  width: 100%;
+  padding: 10px 2px;
+  border: none;
+  border-bottom: 1.5px solid var(--linie-stark);
+  border-radius: 0;
+  background: transparent;
+  color: var(--tinte);
+  font-family: var(--schrift-hand);
+  font-size: 19px;
+  min-height: 48px;
+  -webkit-appearance: none;
+  transition: border-color 0.15s;
+}
+select {
+  font-family: var(--schrift-text);
+  font-size: 17px;
+  /* eigener Pfeil, damit das Feld nicht wie ein Systemkasten wirkt */
+  background-image: linear-gradient(45deg, transparent 50%, var(--tinte-blass) 50%),
+                    linear-gradient(135deg, var(--tinte-blass) 50%, transparent 50%);
+  background-position: right 12px center, right 6px center;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 26px;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-bottom-color: var(--gebrannt);
+}
+textarea {
+  min-height: 92px;
+  resize: vertical;
+  border: 1.5px solid var(--linie);
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+  background: rgba(255, 250, 233, 0.4);
+}
+input[type="checkbox"] { width: auto; min-height: 0; }
+
+/* ══ Zeilen auf dem Pergament ════════════════════════════════════
+   Kein eigener Kasten pro Eintrag mehr -- nur ein Haarstrich dazwischen.
+   Gibt auf dem Handy deutlich mehr Platz für den Inhalt. */
+.item-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 2px;
+  min-height: 56px;
+  cursor: pointer;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.item-row + .item-row { border-top: 1px solid var(--linie); }
+.item-row:active { background: rgba(53, 29, 8, 0.05); }
+
+.item-thumb {
+  width: 44px; height: 44px; flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--linie);
+  background: rgba(255, 250, 233, 0.45);
+  object-fit: cover;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  color: var(--tinte);
+  overflow: hidden;
+}
+.item-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .item-info { flex: 1; min-width: 0; }
-.item-name { font-weight: 700; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.item-meta { font-size: 14px; color: var(--text-muted); margin-top: 3px; }
+.item-name {
+  font-weight: 600; font-size: 16.5px; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.item-meta {
+  font-size: 13.5px; color: var(--tinte-blass); margin-top: 2px;
+  display: flex; flex-wrap: wrap; gap: 2px 9px; align-items: baseline;
+}
+/* Ortsangabe in Handschrift -- das sucht man im Lager */
+.ort { font-family: var(--schrift-hand); font-size: 16px; color: var(--tinte); }
+.menge { font-variant-numeric: tabular-nums; }
+/* Wer hat es aufgeschrieben */
+.urheber {
+  font-family: var(--schrift-hand); font-size: 16px; color: var(--tinte-blass);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.urheber .icon { font-size: 0.8em; stroke-width: 2.1; }
 
-/* Empty state */
-.empty { text-align: center; padding: 48px 16px; color: var(--text-muted); }
-.empty .icon { font-size: 56px; margin-bottom: 16px; }
+/* ══ Etiketten ═══════════════════════════════════════════════════ */
+.tag, .type-badge {
+  display: inline-block;
+  font-family: var(--schrift-stempel);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 3px 7px;
+  border: 1px solid var(--linie);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--tinte-blass);
+  white-space: nowrap;
+}
+.tag-rot { color: var(--rot); border-color: rgba(158, 58, 34, 0.55); }
 
-/* Loading */
-.loading { text-align: center; padding: 40px; color: var(--text-muted); font-size: 17px; }
+.breadcrumb { font-family: var(--schrift-hand); font-size: 16px; color: var(--tinte); }
 
-/* Divider */
-.divider { height: 1px; background: var(--border); margin: 16px 0; }
+/* ══ Zustände ════════════════════════════════════════════════════ */
+.empty {
+  text-align: center; padding: 44px 16px; color: var(--tinte-blass);
+}
+.empty .icon { font-size: 44px; margin-bottom: 12px; opacity: 0.55; }
+.empty .hinweis { font-family: var(--schrift-hand); font-size: 19px; }
 
-/* FAB — groß und gut erreichbar */
-.fab { position: fixed; bottom: calc(var(--nav-h) + 20px); right: 20px; width: 68px; height: 68px; border-radius: 50%; background: var(--green); color: white; font-size: 34px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 99; -webkit-tap-highlight-color: transparent; transition: transform 0.1s; }
+.loading {
+  text-align: center; padding: 36px;
+  font-family: var(--schrift-hand);
+  font-size: 19px; color: var(--tinte-blass);
+}
+
+.divider { height: 1px; background: var(--linie); margin: 14px 0; }
+
+/* ══ Aktionsknopf unten rechts ═══════════════════════════════════ */
+.fab {
+  position: fixed;
+  bottom: calc(var(--nav-h) + 18px + env(safe-area-inset-bottom, 0px));
+  right: 18px;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: var(--holz);
+  color: #f7e2c0;
+  border: none;
+  box-shadow: 0 4px 14px rgba(30, 16, 4, 0.45), inset 0 1px 0 rgba(255, 216, 170, 0.25);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  z-index: 99;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s;
+}
 .fab:active { transform: scale(0.93); }
+.fab .icon { filter: drop-shadow(0 -1px 0 rgba(25, 12, 2, 0.4)); }
 
-/* Drag & Drop */
+/* Ziehen und Ablegen */
 .drag-ghost { opacity: 0.3; }
-.drag-chosen { box-shadow: 0 6px 24px rgba(0,0,0,0.22) !important; transform: scale(1.02); }
+.drag-chosen { box-shadow: 0 6px 20px rgba(48, 26, 8, 0.3) !important; }
 
-/* ===== Responsive: kleine Smartphones (iPhone mini, SE) ===== */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ══ Kleine Telefone (iPhone SE, mini) ═══════════════════════════ */
 @media (max-width: 390px) {
   html, body { font-size: 16px; }
 
-  .page { padding: 12px 12px calc(var(--nav-h) + 12px); }
+  .page { padding: 12px 12px calc(var(--nav-h) + 16px); }
+  .page-title { font-size: 18px; }
+  .card { padding: 13px 13px; }
 
-  .page-title { font-size: 22px; }
-  .page-header { margin-bottom: 14px; }
+  .btn { font-size: 12px; padding: 12px 15px; min-height: 48px; }
+  .btn-sm { font-size: 10.5px; padding: 8px 11px; min-height: 40px; }
+  .btn-lg { font-size: 14px; padding: 15px 20px; min-height: 54px; }
 
-  .card { padding: 14px; }
+  input, textarea, select { font-size: 17px; min-height: 46px; }
 
-  .btn { font-size: 15px; padding: 12px 16px; min-height: 48px; }
-  .btn-sm { font-size: 13px; padding: 8px 12px; min-height: 40px; }
-  .btn-lg { font-size: 17px; padding: 14px 20px; min-height: 52px; }
+  .item-row { padding: 10px 2px; min-height: 52px; gap: 10px; }
+  .item-thumb { width: 40px; height: 40px; font-size: 20px; }
+  .item-name { font-size: 15.5px; }
+  .item-meta { font-size: 12.5px; }
+  .ort, .urheber { font-size: 15px; }
 
-  input, textarea, select { font-size: 16px; padding: 12px 14px; min-height: 48px; }
-
-  .item-row { padding: 12px; min-height: 64px; gap: 10px; }
-  .item-thumb { width: 48px; height: 48px; font-size: 22px; }
-  .item-name { font-size: 16px; }
-  .item-meta { font-size: 13px; }
-
-  nav a { font-size: 10px; gap: 3px; }
-  nav a .icon { font-size: 22px; }
+  nav a { font-size: 8px; gap: 3px; }
+  nav a .icon { font-size: 20px; }
+  .fab { width: 54px; height: 54px; font-size: 23px; right: 14px; }
 }

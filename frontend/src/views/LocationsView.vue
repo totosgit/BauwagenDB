@@ -7,14 +7,14 @@
 
     <!-- Collapse-All / Expand-All -->
     <div v-if="tree.length" class="tree-controls">
-      <button class="btn btn-secondary btn-sm" @click="doExpandAll">▾ Alle aufklappen</button>
-      <button class="btn btn-secondary btn-sm" @click="doCollapseAll">▸ Alle zuklappen</button>
+      <button class="btn btn-secondary btn-sm" @click="doExpandAll"><Icon name="ab" class="icon" />Alle aufklappen</button>
+      <button class="btn btn-secondary btn-sm" @click="doCollapseAll"><Icon name="weiter" class="icon" />Alle zuklappen</button>
     </div>
 
     <div v-if="loading" class="loading">Laden ...</div>
 
     <div v-else-if="!tree.length" class="empty">
-      <div class="icon">🚌</div>
+      <Icon name="bauwagen" class="icon" />
       <div>Noch keine Lagerorte angelegt</div>
       <div style="font-size:14px; color:var(--text-muted); margin-top:6px">
         Starte mit dem Anlegen von „Bauwagen" oder „Schopf"
@@ -48,7 +48,7 @@
         <div v-if="allowedTypes.length" class="type-hint">
           <span v-if="modal.form.parent_id">
             Unter <strong>{{ parentName }}</strong> erlaubt:
-            <span v-for="t in allowedTypes" :key="t" class="type-chip">{{ TYPE_LABEL[t] }}</span>
+            <span v-for="t in allowedTypes" :key="t" class="type-chip">{{ typLabel(t) }}</span>
           </span>
           <span v-else>Root-Ebene: Bauwagen, Schopf oder Sonstiges</span>
         </div>
@@ -73,8 +73,8 @@
                 :class="{ active: modal.form.type === t }"
                 @click="modal.form.type = t"
               >
-                <span class="type-btn-icon">{{ TYPE_ICON[t] }}</span>
-                <span>{{ TYPE_LABEL[t] }}</span>
+                <span class="type-btn-icon"><Icon :name="typIcon(t)" class="icon" /></span>
+                <span>{{ typLabel(t) }}</span>
               </button>
             </div>
           </div>
@@ -124,6 +124,8 @@ import {
 import { useMode } from '../composables/useMode.js'
 import { useExpanded } from '../composables/useExpanded.js'
 import LocationNode from '../components/LocationNode.vue'
+import Icon from '../components/Icon.vue'
+import { typIcon, typLabel } from '../utils/orttypen.js'
 
 const { mode } = useMode()
 const { expandAll, collapseAll } = useExpanded()
@@ -144,18 +146,6 @@ const VALID_CHILDREN = {
   boden:     ['kiste'],
   kiste:     [],
   wand:      [],
-}
-const TYPE_ICON = {
-  bauwagen: '🚌', schopf: '🏚️', sonstiges: '🏠',
-  regal: '🗄️', schrank: '🪟',
-  fach: '🗃️', boden: '▭',
-  kiste: '📦', wand: '🧱',
-}
-const TYPE_LABEL = {
-  bauwagen: 'Bauwagen', schopf: 'Schopf', sonstiges: 'Sonstiges',
-  regal: 'Regal', schrank: 'Schrank',
-  fach: 'Fach', boden: 'Boden',
-  kiste: 'Kiste', wand: 'Wand',
 }
 
 // ── Modal ────────────────────────────────────────────────────────
@@ -294,7 +284,7 @@ onMounted(load)
   background: var(--cream); border-radius: var(--radius-sm);
   padding: 8px 12px; margin-bottom: 14px;
 }
-.type-hint-warn { background: #2a1800; color: #ffa040; }
+.type-hint-warn { background: var(--rot-blass); color: var(--rot); }
 .type-chip {
   display: inline-block; margin: 0 3px; padding: 1px 7px;
   border-radius: 999px; background: var(--green-pale); color: var(--green);
@@ -313,5 +303,5 @@ onMounted(load)
 .modal-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
 .coord-row { display: flex; gap: 8px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
-.error-msg { color: #c62828; font-size: 14px; margin-top: 6px; }
+.error-msg { color: var(--rot); font-size: 14px; margin-top: 6px; }
 </style>

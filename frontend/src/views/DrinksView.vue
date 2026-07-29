@@ -2,9 +2,9 @@
   <div class="page">
     <!-- Tabs -->
     <div class="drink-tabs">
-      <button :class="{ active: tab === 'verkauf' }" @click="tab = 'verkauf'">🛒 Verkauf</button>
-      <button :class="{ active: tab === 'strich' }" @click="tab = 'strich'">📋 Strichliste</button>
-      <button :class="{ active: tab === 'verwaltung' }" @click="tab = 'verwaltung'">⚙️ Verwaltung</button>
+      <button :class="{ active: tab === 'verkauf' }" @click="tab = 'verkauf'"><Icon name="einkauf" class="icon" />Verkauf</button>
+      <button :class="{ active: tab === 'strich' }" @click="tab = 'strich'"><Icon name="notizen" class="icon" />Strichliste</button>
+      <button :class="{ active: tab === 'verwaltung' }" @click="tab = 'verwaltung'"><Icon name="verwaltung" class="icon" />Verwaltung</button>
     </div>
 
     <!-- ===== VERKAUF ===== -->
@@ -15,7 +15,7 @@
 
       <div v-if="loading" class="loading">Laden ...</div>
       <div v-else-if="!drinks.length" class="empty">
-        <div class="icon">🥤</div>
+        <Icon name="getraenke" class="icon" />
         <div>Keine Getränke angelegt. Bitte erst unter „Verwaltung" anlegen.</div>
       </div>
 
@@ -27,7 +27,7 @@
           :class="{ 'out-of-stock': drink.stock_lager <= 0 }"
           @click="doDeduct(drink)"
         >
-          <div class="drink-emoji">{{ drink.emoji || '🥤' }}</div>
+          <div class="drink-emoji"><span v-if="drink.emoji">{{ drink.emoji }}</span><Icon v-else name="getraenke" class="icon" /></div>
           <div class="drink-name">{{ drink.name }}</div>
           <div class="drink-stock" :class="{ low: drink.stock_lager <= 3 }">
             {{ drink.stock_lager }} Stk.
@@ -38,11 +38,11 @@
 
       <!-- Restock panel -->
       <div class="restock-bar card" style="margin-top: 20px;">
-        <div style="font-weight: 600; margin-bottom: 10px;">📦 Bestand auffüllen</div>
+        <div class="section-label" style="margin-top:0"><Icon name="auffuellen" class="icon" />Bestand auffüllen</div>
         <div class="restock-row">
           <select v-model="restock.drinkId">
             <option :value="null">Getränk wählen ...</option>
-            <option v-for="d in drinks" :key="d.id" :value="d.id">{{ d.emoji || '🥤' }} {{ d.name }}</option>
+            <option v-for="d in drinks" :key="d.id" :value="d.id">{{ d.emoji ? d.emoji + ' ' : '' }}{{ d.name }}</option>
           </select>
           <input v-model.number="restock.amount" type="number" min="1" style="width: 80px;" />
           <button class="btn btn-primary" @click="doRestock" :disabled="!restock.drinkId">+ Auffüllen</button>
@@ -54,12 +54,12 @@
     <div v-if="tab === 'strich'" class="strich-tab">
       <div class="page-header" style="margin-top: 16px;">
         <h2 class="page-title">Strichliste</h2>
-        <button class="btn btn-secondary btn-sm" @click="exportPDF" :disabled="!allSummaries.length">📄 PDF</button>
+        <button class="btn btn-secondary btn-sm" @click="exportPDF" :disabled="!allSummaries.length"><Icon name="pdf" class="icon" />PDF</button>
       </div>
 
       <div v-if="loadingTally" class="loading">Laden ...</div>
       <div v-else-if="!drinks.length" class="empty">
-        <div class="icon">🥤</div>
+        <Icon name="getraenke" class="icon" />
         <div>Keine Getränke angelegt. Bitte erst unter „Verwaltung" anlegen.</div>
       </div>
 
@@ -72,7 +72,7 @@
           </div>
 
           <div v-for="drink in drinks" :key="drink.id" class="paper-line">
-            <span class="line-drink">{{ drink.emoji || '🥤' }} {{ drink.name }}</span>
+            <span class="line-drink"><span v-if="drink.emoji">{{ drink.emoji }}</span><Icon v-else name="getraenke" class="icon" />{{ drink.name }}</span>
             <span class="line-marks"><TallyMarks :count="countFor(mySummary, drink.id)" /></span>
             <span class="line-actions">
               <button
@@ -80,8 +80,8 @@
                 :disabled="countFor(mySummary, drink.id) === 0 || busy"
                 @click="minusOne(drink)"
                 aria-label="Strich zurücknehmen"
-              >−</button>
-              <button class="ink-btn plus" :disabled="busy" @click="plusOne(drink)" aria-label="Strich setzen">＋</button>
+              ><Icon name="minus" class="icon" /></button>
+              <button class="ink-btn plus" :disabled="busy" @click="plusOne(drink)" aria-label="Strich setzen"><Icon name="plus" class="icon" /></button>
             </span>
           </div>
 
@@ -105,7 +105,7 @@
 
           <div v-if="!s.entries.length" class="paper-empty">noch nichts getrunken</div>
           <div v-for="e in s.entries" :key="e.drink_id" class="paper-line">
-            <span class="line-drink">{{ e.drink_emoji || '🥤' }} {{ e.drink_name }}</span>
+            <span class="line-drink"><span v-if="e.drink_emoji">{{ e.drink_emoji }}</span><Icon v-else name="getraenke" class="icon" />{{ e.drink_name }}</span>
             <span class="line-marks"><TallyMarks :count="e.total" /></span>
           </div>
 
@@ -160,7 +160,7 @@
           <label>Bestand</label>
           <input v-model.number="drinkForm.data.stock_lager" type="number" min="0" />
         </div>
-        <div v-if="drinkForm.error" style="color: #c62828; font-size: 14px; margin-bottom: 8px;">{{ drinkForm.error }}</div>
+        <div v-if="drinkForm.error" style="color: var(--rot); font-size: 14px; margin-bottom: 8px;">{{ drinkForm.error }}</div>
         <div style="display: flex; gap: 8px;">
           <button class="btn btn-primary" @click="saveDrink">Speichern</button>
           <button class="btn btn-secondary" @click="drinkForm.open = false">Abbrechen</button>
@@ -169,7 +169,7 @@
 
       <div v-for="drink in drinks" :key="drink.id" class="card" style="margin-top: 8px; padding: 12px;">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 28px;">{{ drink.emoji || '🥤' }}</span>
+          <span class="verw-emoji"><span v-if="drink.emoji">{{ drink.emoji }}</span><Icon v-else name="getraenke" class="icon" /></span>
           <div style="flex:1">
             <div style="font-weight: 600;">{{ drink.name }}</div>
             <div style="font-size: 13px; color: var(--text-muted);">
@@ -180,8 +180,8 @@
               {{ drink.stock_lager }} Stk.
             </div>
           </div>
-          <button class="btn btn-secondary btn-sm" @click="openDrinkForm(drink)">✏️</button>
-          <button class="btn btn-sm" style="background:#2a1018; color:#f47070" @click="doDeleteDrink(drink)">🗑️</button>
+          <button class="btn btn-secondary btn-sm" @click="openDrinkForm(drink)" aria-label="Bearbeiten"><Icon name="stift" class="icon" /></button>
+          <button class="btn btn-sm btn-danger" @click="doDeleteDrink(drink)" aria-label="Löschen"><Icon name="muell" class="icon" /></button>
         </div>
       </div>
 
@@ -204,6 +204,7 @@ import { useMode } from '../composables/useMode.js'
 import { useAuth } from '../composables/useAuth.js'
 import { generateTallyPDF } from '../utils/tallyPDF.js'
 import TallyMarks from '../components/TallyMarks.vue'
+import Icon from '../components/Icon.vue'
 
 const { mode } = useMode()
 const { isAdmin } = useAuth()
@@ -354,29 +355,28 @@ onMounted(async () => {
 .restock-row { display: flex; gap: 8px; align-items: center; }
 .restock-row select { flex: 1; }
 
-/* ── Strichliste: Papier & Handschrift ────────────────────────────
-   Bewusst nur auf diese eine Ansicht begrenzt -- der Rest der App
-   bleibt im gewohnten dunklen Theme.
-   Die Schrift kommt vom Gerät (iOS: Bradley Hand / Noteworthy), damit
-   nichts nachgeladen werden muss und es auch offline stimmt. */
+/* ── Strichliste ──────────────────────────────────────────────────
+   Nutzt jetzt die globalen Materialien -- die eigenen Farbvariablen
+   von früher wären doppelt, seit die ganze App auf Pergament liegt.
+   Die Zettel bleiben eigene Blätter, weil es inhaltlich welche sind. */
 .strich-tab {
-  --ink:        #2c3e57;
-  --ink-soft:   #6b7a90;
-  --ink-red:    #b5443a;
-  --paper:      #f6f0e2;
-  --paper-line: #d9d0bb;
+  --ink:        var(--tinte);
+  --ink-soft:   var(--tinte-blass);
+  --ink-red:    var(--rot);
+  --paper:      var(--blatt);
+  --paper-line: var(--linie);
 
-  font-family: 'Bradley Hand', 'Noteworthy', 'Segoe Print', 'Comic Sans MS', cursive;
+  font-family: var(--schrift-hand);
 }
 
 .paper {
   position: relative;
   background: var(--paper);
   color: var(--ink);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   padding: 18px 18px 14px 26px;
   margin-top: 14px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.45);
+  box-shadow: 0 2px 8px rgba(48, 26, 8, 0.28);
   /* feine Linien wie auf liniertem Papier */
   background-image: repeating-linear-gradient(
     to bottom,
@@ -395,7 +395,7 @@ onMounted(async () => {
   opacity: 0.5;
 }
 .paper-own {
-  box-shadow: 0 3px 14px rgba(0,0,0,0.5);
+  box-shadow: 0 3px 12px rgba(48, 26, 8, 0.34);
   transform: rotate(-0.35deg);
 }
 

@@ -41,4 +41,22 @@ def run_migrations(engine: Engine) -> list[str]:
             conn.execute(text("DROP TABLE sessions"))
             done.append("alte sessions-Tabelle entfernt")
 
+        # Notizen und Einkaufsliste tragen jetzt den Urheber aus dem Konto.
+        # Bestandsdaten bleiben ohne Verweis: bei Notizen zeigen wir weiter
+        # den getippten Namen, bei Einkaufszetteln "unbekannt".
+        # Gespeichert wird beides: der Verweis aufs Konto und der Name als
+        # Momentaufnahme. Letzterer ueberlebt das Loeschen eines Kontos und
+        # erfuellt zugleich die alte NOT NULL-Regel auf notes.author, die
+        # SQLite nicht per ALTER lockern kann.
+        for tabelle in ("notes", "shopping_items"):
+            if tabelle not in tables:
+                continue
+            spalten = _columns(inspector, tabelle)
+            if "created_by" not in spalten:
+                conn.execute(text(f"ALTER TABLE {tabelle} ADD COLUMN created_by CHAR(36)"))
+                done.append(f"{tabelle}.created_by ergaenzt")
+            if "author" not in spalten:
+                conn.execute(text(f"ALTER TABLE {tabelle} ADD COLUMN author VARCHAR(100)"))
+                done.append(f"{tabelle}.author ergaenzt")
+
     return done

@@ -3,7 +3,7 @@
 
     <!-- Ausgewählter Pfad -->
     <div v-if="path.length || isDone" class="wizard-path">
-      <button class="path-chip" @click="reset">🏠</button>
+      <button class="path-chip" @click="reset" aria-label="Von vorne"><Icon name="haus" class="icon" /></button>
       <template v-for="(loc, i) in path" :key="loc.id">
         <span class="path-sep">›</span>
         <button class="path-chip" @click="goTo(i)">{{ loc.name }}</button>
@@ -16,7 +16,7 @@
 
     <!-- Fertig-Ansicht -->
     <div v-if="isDone" class="wizard-done">
-      <div class="wizard-done-label">📍 Lagerort</div>
+      <div class="wizard-done-label">Lagerort</div>
       <div class="wizard-done-value">{{ breadcrumb }}</div>
       <button class="btn btn-secondary btn-sm" style="margin-top:10px" @click="reset">Ändern</button>
     </div>
@@ -36,7 +36,7 @@
       <div v-else>
         <!-- "Direkt auf dem Boden" Option -->
         <button v-if="canPickDirect" class="wizard-opt wizard-opt-direct" @click="pickDirect">
-          ✅ Direkt auf dem Boden (ohne Kiste)
+          <Icon name="haken" class="icon" />Direkt auf dem Boden (ohne Kiste)
         </button>
 
         <!-- Gruppierte Ansicht (Kinder eines Gebäudes) -->
@@ -50,9 +50,9 @@
                 class="wizard-opt"
                 @click="pick(opt)"
               >
-                <span class="opt-icon">{{ TYPE_ICON[opt.type] || '📌' }}</span>
+                <span class="opt-icon"><Icon :name="typIcon(opt.type)" class="icon" /></span>
                 <span class="opt-name">{{ opt.name }}</span>
-                <span v-if="childCount(opt.id)" class="opt-arrow">→</span>
+                <Icon v-if="childCount(opt.id)" name="weiter" class="icon opt-arrow" />
               </button>
             </div>
           </div>
@@ -66,9 +66,9 @@
             class="wizard-opt"
             @click="pick(opt)"
           >
-            <span class="opt-icon">{{ TYPE_ICON[opt.type] || '📌' }}</span>
+            <span class="opt-icon"><Icon :name="typIcon(opt.type)" class="icon" /></span>
             <span class="opt-name">{{ opt.name }}</span>
-            <span v-if="childCount(opt.id)" class="opt-arrow">→</span>
+            <Icon v-if="childCount(opt.id)" name="weiter" class="icon opt-arrow" />
           </button>
         </div>
       </div>
@@ -79,6 +79,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import Icon from './Icon.vue'
+import { typIcon } from '../utils/orttypen.js'
 
 const props = defineProps({
   modelValue: { type: Number, default: null },
@@ -86,12 +88,6 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 
-const TYPE_ICON = {
-  bauwagen: '🚌', schopf: '🏚️', sonstiges: '🏠',
-  regal: '🗄️', schrank: '🪟',
-  fach: '🗃️', boden: '▭',
-  kiste: '📦', wand: '🧱',
-}
 
 const GROUP_LABELS = {
   regal: 'Regale', schrank: 'Schränke', kiste: 'Kisten', wand: 'Wände', sonstiges: 'Sonstiges',
@@ -145,15 +141,15 @@ const noLocationsAtAll = computed(() =>
 
 const currentQuestion = computed(() => {
   switch (currentParentType.value) {
-    case null:        return '🏠 Wo befindet sich das Objekt?'
-    case 'bauwagen':  return '📍 Wie ist es im Bauwagen gelagert?'
-    case 'schopf':    return '📍 Wie ist es im Schopf gelagert?'
-    case 'sonstiges': return '📍 Wie ist es dort gelagert?'
-    case 'regal':     return '📂 In welchem Fach?'
-    case 'fach':      return '📋 Auf welchem Boden?'
-    case 'schrank':   return '📋 Auf welchem Boden?'
-    case 'boden':     return '📦 In einer Kiste oder direkt auf dem Boden?'
-    default:          return '📍 Auswählen:'
+    case null:        return 'Wo befindet sich das Objekt?'
+    case 'bauwagen':  return 'Wie ist es im Bauwagen gelagert?'
+    case 'schopf':    return 'Wie ist es im Schopf gelagert?'
+    case 'sonstiges': return 'Wie ist es dort gelagert?'
+    case 'regal':     return 'In welchem Fach?'
+    case 'fach':      return 'Auf welchem Boden?'
+    case 'schrank':   return 'Auf welchem Boden?'
+    case 'boden':     return 'In einer Kiste oder direkt auf dem Boden?'
+    default:          return 'Auswählen:'
   }
 })
 
