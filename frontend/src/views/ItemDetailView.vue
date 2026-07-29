@@ -50,7 +50,42 @@
         </div>
       </div>
 
-      <button class="btn btn-danger" style="margin-top: 16px; width: 100%;" @click="doDelete">Löschen</button>
+      <!-- Einkaufsliste -->
+      <div v-if="showShoppingForm" class="card" style="margin-top: 14px;">
+        <div style="font-size:15px; font-weight:700; margin-bottom:10px;">Auf Einkaufsliste</div>
+        <div class="form-group">
+          <label>Menge</label>
+          <input v-model.number="shopForm.quantity" type="number" min="0.5" step="0.5" />
+        </div>
+        <div class="form-group">
+          <label>Einheit</label>
+          <select v-model="shopForm.unit">
+            <option>Stück</option><option>Meter</option><option>Liter</option>
+            <option>kg</option><option>Rolle</option><option>Paar</option>
+            <option>Satz</option><option>Packung</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Dringlichkeit</label>
+          <div class="urgency-row">
+            <button v-for="u in urgencies" :key="u.value" type="button"
+              class="urgency-btn" :class="[u.value, { active: shopForm.urgency === u.value }]"
+              @click="shopForm.urgency = u.value">{{ u.label }}</button>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn btn-primary" style="flex:1" @click="addToShopping">Hinzufügen</button>
+          <button class="btn btn-secondary" @click="showShoppingForm = false">Abbrechen</button>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top: 16px;" v-if="!showShoppingForm">
+        <button class="btn btn-secondary" style="flex:1" @click="openShoppingForm">🛒 Einkaufsliste</button>
+        <button class="btn btn-danger" style="flex:1" @click="doDelete">Löschen</button>
+      </div>
+      <div v-if="showShoppingForm" style="margin-top:8px;">
+        <button class="btn btn-danger" style="width:100%" @click="doDelete">Löschen</button>
+      </div>
     </template>
   </div>
 </template>
@@ -58,7 +93,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getItem, deleteItem, uploadImage } from '../api/index.js'
+import { getItem, deleteItem, uploadImage, createShoppingItem } from '../api/index.js'
 import { useMode } from '../composables/useMode.js'
 
 const { mode } = useMode()
@@ -69,6 +104,31 @@ const id = route.params.id
 const item = ref(null)
 const loading = ref(false)
 const fileInput = ref(null)
+const showShoppingForm = ref(false)
+const shopForm = ref({ quantity: 1, unit: 'Stück', urgency: 'mittel' })
+const urgencies = [
+  { value: 'niedrig', label: 'Niedrig' },
+  { value: 'mittel', label: 'Mittel' },
+  { value: 'hoch', label: 'Hoch' },
+  { value: 'dringend', label: 'Dringend!' },
+]
+
+function openShoppingForm() {
+  shopForm.value = { quantity: item.value?.quantity ?? 1, unit: item.value?.unit ?? 'Stück', urgency: 'mittel' }
+  showShoppingForm.value = true
+}
+
+async function addToShopping() {
+  await createShoppingItem({
+    name: item.value.name,
+    quantity: shopForm.value.quantity,
+    unit: shopForm.value.unit,
+    urgency: shopForm.value.urgency,
+    item_id: item.value.id,
+  })
+  showShoppingForm.value = false
+  router.push('/shopping')
+}
 
 async function load() {
   loading.value = true
@@ -105,4 +165,15 @@ onMounted(load)
   margin-top: 10px; padding: 6px 14px; border-radius: 999px;
   background: #2a1800; color: #ffa040; font-size: 14px; font-weight: 700;
 }
+
+.urgency-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.urgency-btn {
+  padding: 6px 12px; border-radius: 8px; border: 2px solid var(--border);
+  background: var(--white); color: var(--text-muted); font-size: 13px; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.urgency-btn.active.niedrig  { background: #1a3a1a; border-color: #4caf50; color: #4caf50; }
+.urgency-btn.active.mittel   { background: #1a2e3a; border-color: #2196f3; color: #2196f3; }
+.urgency-btn.active.hoch     { background: #3a2a1a; border-color: #ff9800; color: #ff9800; }
+.urgency-btn.active.dringend { background: #3a1a1a; border-color: #f44336; color: #f44336; }
 </style>

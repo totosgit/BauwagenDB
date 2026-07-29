@@ -1,5 +1,5 @@
 <template>
-  <div v-if="route.path !== '/login'" class="app-root" :class="mode === 'lager' ? 'mode-lager' : 'mode-jahr'">
+  <div v-if="!isAuthPage" class="app-root" :class="mode === 'lager' ? 'mode-lager' : 'mode-jahr'">
     <div class="mode-bar">
       <div class="mode-bar-title">
         <img src="/logo.png" class="mode-bar-logo" alt="" />
@@ -12,7 +12,10 @@
         </div>
         <span class="toggle-label" :class="{ active: mode === 'jahr' }">🏠</span>
       </div>
-      <button class="logout-btn" @click="doLogout" title="Abmelden">⏻</button>
+      <router-link to="/profile" class="profile-btn" :title="user?.display_name || 'Profil'">
+        <span v-if="pendingCount" class="profile-dot">{{ pendingCount }}</span>
+        {{ initials }}
+      </router-link>
     </div>
 
     <!-- key=mode erzwingt Neu-Laden der View wenn Modus wechselt -->
@@ -35,6 +38,10 @@
         <span class="icon">🥤</span>
         Getränke
       </router-link>
+      <router-link to="/shopping">
+        <span class="icon">🛒</span>
+        Einkauf
+      </router-link>
       <router-link to="/notes">
         <span class="icon">📝</span>
         Notizen
@@ -46,19 +53,35 @@
 </template>
 
 <script setup>
-import { useRoute, useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useMode } from './composables/useMode.js'
-import { logout } from './api/index.js'
+import { useAuth } from './composables/useAuth.js'
+import { getPendingUsers } from './api/index.js'
 
 const route = useRoute()
-const router = useRouter()
 const { mode, setMode } = useMode()
+const { user, isAdmin } = useAuth()
 
-async function doLogout() {
-  if (!confirm('Wirklich abmelden?')) return
-  await logout()
-  router.push('/login')
-}
+const pendingCount = ref(0)
+
+// Login und Registrierung bringen ihr eigenes Layout mit (ohne Nav/Header).
+const isAuthPage = computed(() => ['/login', '/register'].includes(route.path))
+
+const initials = computed(() => {
+  const name = user.value?.display_name || ''
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?'
+})
+
+// Admins sehen offene Registrierungen als Punkt am Profil-Knopf.
+watch(() => [isAdmin.value, route.path], async () => {
+  if (!isAdmin.value) { pendingCount.value = 0; return }
+  try {
+    pendingCount.value = (await getPendingUsers()).length
+  } catch {
+    pendingCount.value = 0
+  }
+}, { immediate: true })
 </script>
 
 <style>
@@ -151,14 +174,23 @@ async function doLogout() {
 }
 .toggle-switch.jahr .toggle-knob { transform: translateX(24px); }
 
-.logout-btn {
-  width: 36px; height: 36px; flex-shrink: 0;
-  border: none; border-radius: 8px;
-  background: transparent; cursor: pointer; font-size: 18px;
+.profile-btn {
+  position: relative;
+  width: 40px; height: 40px; flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--green); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  color: var(--text-muted); -webkit-tap-highlight-color: transparent;
+  font-size: 15px; font-weight: 800; text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.logout-btn:active { background: rgba(255,255,255,0.08); }
+.profile-btn:active { opacity: 0.8; }
+.profile-dot {
+  position: absolute; top: -3px; right: -3px;
+  min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 999px; background: #c62828; color: #fff;
+  font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
 
 /* ── Mobile ───────────────────────────────────────────────────── */
 @media (max-width: 390px) {

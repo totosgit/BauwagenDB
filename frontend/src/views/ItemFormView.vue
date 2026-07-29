@@ -44,14 +44,6 @@
             </select>
           </div>
         </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label>Lagerzustand</label>
-          <select v-model="form.storage_mode">
-            <option value="both">Immer (Lager &amp; Jahr)</option>
-            <option value="lager">Nur Auf dem Lager</option>
-            <option value="jahr">Nur Unter dem Jahr</option>
-          </select>
-        </div>
       </div>
 
       <!-- Lagerort Auf dem Lager -->

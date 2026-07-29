@@ -1,130 +1,131 @@
+"""Öffentliche Strichliste.
+
+Jeder sieht die Striche aller anderen, setzt und löscht aber ausschließlich
+seine eigenen. Nur das Zurücksetzen bei der Abrechnung ist Admins vorbehalten.
+"""
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from auth import current_admin, current_user
 from database import get_db
-from models import GroupLeader, Tally, Drink
-from schemas import GroupLeaderCreate, GroupLeaderResponse, TallyCreate, TallyResponse, TallySummary, TallySummaryEntry
+from models import Drink, Tally, User
+from schemas import TallyCreate, TallyResponse, TallySummary, TallySummaryEntry
 
-router = APIRouter(tags=["tally"])
-
-
-# --- Gruppenleiter ---
-
-@router.get("/group-leaders/", response_model=list[GroupLeaderResponse])
-def list_group_leaders(db: Session = Depends(get_db)):
-    return db.query(GroupLeader).order_by(GroupLeader.name).all()
+router = APIRouter(prefix="/tally", tags=["tally"])
 
 
-@router.post("/group-leaders/", response_model=GroupLeaderResponse, status_code=201)
-def create_group_leader(data: GroupLeaderCreate, db: Session = Depends(get_db)):
-    gl = GroupLeader(name=data.name)
-    db.add(gl)
-    db.commit()
-    db.refresh(gl)
-    return gl
+def _summaries_for(db: Session, users: list[User], me: User) -> list[TallySummary]:
+    """Baut die Übersicht für mehrere Benutzer mit zwei Queries statt N+1."""
+    if not users:
+        return []
 
-
-@router.delete("/group-leaders/{gl_id}", status_code=204)
-def delete_group_leader(gl_id: int, db: Session = Depends(get_db)):
-    gl = db.get(GroupLeader, gl_id)
-    if not gl:
-        raise HTTPException(status_code=404, detail="Gruppenleiter nicht gefunden")
-    db.delete(gl)
-    db.commit()
-
-
-# --- Strichliste ---
-
-@router.get("/tally/summary/{gl_id}", response_model=TallySummary)
-def get_tally_summary(gl_id: int, db: Session = Depends(get_db)):
-    gl = db.get(GroupLeader, gl_id)
-    if not gl:
-        raise HTTPException(status_code=404, detail="Gruppenleiter nicht gefunden")
-
+    user_ids = [u.id for u in users]
     rows = (
-        db.query(Tally.drink_id, func.sum(Tally.count).label("total"))
-        .filter(Tally.group_leader_id == gl_id)
-        .group_by(Tally.drink_id)
+        db.query(Tally.user_id, Tally.drink_id, func.sum(Tally.count).label("total"))
+        .filter(Tally.user_id.in_(user_ids))
+        .group_by(Tally.user_id, Tally.drink_id)
         .all()
     )
+    drinks = {d.id: d for d in db.query(Drink).all()}
 
-    entries = []
-    grand_total = 0
-    for drink_id, total in rows:
-        drink = db.get(Drink, drink_id)
-        entries.append(TallySummaryEntry(
-            drink_id=drink_id,
-            drink_name=drink.name if drink else "?",
-            drink_emoji=drink.emoji if drink else None,
-            total=total,
-        ))
-        grand_total += total
-
-    return TallySummary(
-        group_leader_id=gl_id,
-        group_leader_name=gl.name,
-        entries=entries,
-        grand_total=grand_total,
-    )
-
-
-@router.get("/tally/all-summaries/", response_model=list[TallySummary])
-def get_all_summaries(db: Session = Depends(get_db)):
-    """Übersicht aller Gruppenleiter mit ihren Tallys."""
-    leaders = db.query(GroupLeader).order_by(GroupLeader.name).all()
-    result = []
-    for gl in leaders:
-        rows = (
-            db.query(Tally.drink_id, func.sum(Tally.count).label("total"))
-            .filter(Tally.group_leader_id == gl.id)
-            .group_by(Tally.drink_id)
-            .all()
-        )
-        entries = []
-        grand_total = 0
-        for drink_id, total in rows:
-            drink = db.get(Drink, drink_id)
-            entries.append(TallySummaryEntry(
+    per_user: dict[str, list[TallySummaryEntry]] = {}
+    for user_id, drink_id, total in rows:
+        drink = drinks.get(drink_id)
+        per_user.setdefault(str(user_id), []).append(
+            TallySummaryEntry(
                 drink_id=drink_id,
                 drink_name=drink.name if drink else "?",
                 drink_emoji=drink.emoji if drink else None,
                 total=total,
-            ))
-            grand_total += total
-        result.append(TallySummary(
-            group_leader_id=gl.id,
-            group_leader_name=gl.name,
-            entries=entries,
-            grand_total=grand_total,
-        ))
+            )
+        )
+
+    result = []
+    for user in users:
+        entries = sorted(per_user.get(str(user.id), []), key=lambda e: e.drink_name)
+        result.append(
+            TallySummary(
+                user_id=user.id,
+                username=user.username,
+                display_name=user.display_name,
+                entries=entries,
+                grand_total=sum(e.total for e in entries),
+                is_self=user.id == me.id,
+            )
+        )
     return result
 
 
-@router.post("/tally/", response_model=TallyResponse, status_code=201)
-def add_tally(data: TallyCreate, db: Session = Depends(get_db)):
-    if not db.get(GroupLeader, data.group_leader_id):
-        raise HTTPException(status_code=404, detail="Gruppenleiter nicht gefunden")
+@router.get("/", response_model=list[TallySummary])
+def list_all(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    """Die öffentliche Liste: alle freigegebenen Benutzer, eigener zuerst."""
+    users = (
+        db.query(User)
+        .filter(User.is_active == True)  # noqa: E712
+        .order_by(User.display_name)
+        .all()
+    )
+    summaries = _summaries_for(db, users, me)
+    summaries.sort(key=lambda s: (not s.is_self, s.display_name.lower()))
+    return summaries
+
+
+@router.get("/me", response_model=TallySummary)
+def my_summary(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    return _summaries_for(db, [me], me)[0]
+
+
+@router.post("/", response_model=TallyResponse, status_code=201)
+def add_tally(
+    data: TallyCreate,
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    """Setzt einen Strich -- immer für den angemeldeten Benutzer selbst."""
+    if data.count < 1:
+        raise HTTPException(status_code=400, detail="Anzahl muss mindestens 1 sein")
     if not db.get(Drink, data.drink_id):
         raise HTTPException(status_code=404, detail="Getränk nicht gefunden")
-    tally = Tally(**data.model_dump())
+
+    tally = Tally(user_id=me.id, drink_id=data.drink_id, count=data.count)
     db.add(tally)
     db.commit()
     db.refresh(tally)
     return tally
 
 
-@router.delete("/tally/{tally_id}", status_code=204)
-def delete_tally(tally_id: int, db: Session = Depends(get_db)):
-    """Einzelnen Strich löschen (Korrektur)."""
-    tally = db.get(Tally, tally_id)
-    if not tally:
-        raise HTTPException(status_code=404, detail="Tally nicht gefunden")
-    db.delete(tally)
+@router.delete("/last/{drink_id}", status_code=204)
+def remove_last(
+    drink_id: int,
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    """Nimmt den zuletzt gesetzten eigenen Strich zurück (Vertippt-Korrektur)."""
+    tally = (
+        db.query(Tally)
+        .filter(Tally.user_id == me.id, Tally.drink_id == drink_id)
+        .order_by(Tally.created_at.desc(), Tally.id.desc())
+        .first()
+    )
+    if tally is None:
+        raise HTTPException(status_code=404, detail="Kein Strich zum Zurücknehmen")
+
+    if tally.count > 1:
+        tally.count -= 1
+    else:
+        db.delete(tally)
     db.commit()
 
 
-@router.delete("/tally/reset/{gl_id}", status_code=204)
-def reset_tallies(gl_id: int, db: Session = Depends(get_db)):
-    """Alle Striche eines Gruppenleiters löschen (Abrechnung)."""
-    db.query(Tally).filter(Tally.group_leader_id == gl_id).delete()
+@router.delete("/reset/{user_id}", status_code=204)
+def reset_tallies(
+    user_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(current_admin),
+):
+    """Abrechnung: alle Striche eines Benutzers löschen. Nur für Admins."""
+    if not db.get(User, user_id):
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+    db.query(Tally).filter(Tally.user_id == user_id).delete()
     db.commit()

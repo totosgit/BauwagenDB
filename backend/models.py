@@ -1,6 +1,13 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTime, Boolean
-from sqlalchemy.orm import relationship
+import uuid
+
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTime, Boolean, Table
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 from datetime import datetime, timezone
+
+from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
+from fastapi_users_db_sqlalchemy.access_token import SQLAlchemyBaseAccessTokenTableUUID
+from fastapi_users_db_sqlalchemy.generics import GUID
+
 from database import Base
 
 def now():
@@ -67,23 +74,58 @@ class Drink(Base):
     tallies = relationship("Tally", back_populates="drink", cascade="all, delete-orphan")
 
 
-class GroupLeader(Base):
-    __tablename__ = "group_leaders"
+# Zuordnung User <-> Gruppe. Gruppen sind rein beschreibend (Kueche,
+# Bauwagentrupp, ...) und haben bewusst keinerlei Rechtewirkung.
+user_groups = Table(
+    "user_groups",
+    Base.metadata,
+    Column("user_id", GUID, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("group_id", Integer, ForeignKey("groups.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class User(SQLAlchemyBaseUserTableUUID, Base):
+    """Benutzerkonto. Login laeuft ueber username, nicht ueber E-Mail.
+
+    is_active  = vom Admin freigegeben (Registrierung legt False an)
+    is_superuser = Admin
+    """
+    __tablename__ = "users"
+
+    username     = Column(String(50), unique=True, index=True, nullable=False)
+    display_name = Column(String(100), nullable=False)
+    # E-Mail ist bei uns optional -- die Basisklasse verlangt sie sonst zwingend.
+    email: Mapped[str | None] = mapped_column(String(320), unique=True, nullable=True)
+    created_at   = Column(DateTime, default=now)
+
+    groups  = relationship("Group", secondary=user_groups, back_populates="members", lazy="selectin")
+    tallies = relationship("Tally", back_populates="user", cascade="all, delete-orphan")
+
+
+class AccessToken(SQLAlchemyBaseAccessTokenTableUUID, Base):
+    """Login-Session. Wird von fastapi-users' DatabaseStrategy verwaltet."""
+    __tablename__ = "access_tokens"
+
+    # Basisklasse zeigt auf "user.id" -- unsere Tabelle heisst "users".
+    @declared_attr
+    def user_id(cls) -> Mapped[uuid.UUID]:
+        return mapped_column(GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+
+class Group(Base):
+    """Frei anlegbare Zugehoerigkeit, z.B. Kueche oder Bauwagentrupp.
+
+    Dient nur der Charakterisierung im Profil, vergibt keine Rechte.
+    """
+    __tablename__ = "groups"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
+    name = Column(String(50), unique=True, nullable=False)
+    emoji = Column(String(10), nullable=True)
+    description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=now)
 
-    tallies = relationship("Tally", back_populates="group_leader", cascade="all, delete-orphan")
-
-
-class Session(Base):
-    """Login-Session mit sliding expiry."""
-    __tablename__ = "sessions"
-
-    token = Column(String(64), primary_key=True)
-    expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.utcnow())
+    members = relationship("User", secondary=user_groups, back_populates="groups")
 
 
 class Note(Base):
@@ -96,15 +138,35 @@ class Note(Base):
     created_at = Column(DateTime, default=now)
 
 
+class ShoppingItem(Base):
+    """Einkaufsliste - Dinge die besorgt werden müssen."""
+    __tablename__ = "shopping_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    quantity = Column(Float, default=1)
+    unit = Column(String(50), default="Stück")
+    urgency = Column(String(20), default="mittel")  # niedrig | mittel | hoch | dringend
+    item_id = Column(Integer, ForeignKey("items.id", ondelete="SET NULL"), nullable=True)
+    notes = Column(Text, nullable=True)
+    erledigt = Column(Boolean, default=False, server_default="0")
+    created_at = Column(DateTime, default=now)
+
+    item = relationship("Item", foreign_keys=[item_id])
+
+
 class Tally(Base):
-    """Einzelner Strich: ein Gruppenleiter hat ein Getränk genommen."""
+    """Einzelner Strich: ein Benutzer hat sich ein Getränk genommen.
+
+    Striche setzt und loescht jeder nur fuer sich selbst.
+    """
     __tablename__ = "tallies"
 
     id = Column(Integer, primary_key=True, index=True)
-    group_leader_id = Column(Integer, ForeignKey("group_leaders.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     drink_id = Column(Integer, ForeignKey("drinks.id", ondelete="CASCADE"), nullable=False)
     count = Column(Integer, default=1)
     created_at = Column(DateTime, default=now)
 
-    group_leader = relationship("GroupLeader", back_populates="tallies")
+    user = relationship("User", back_populates="tallies")
     drink = relationship("Drink", back_populates="tallies")

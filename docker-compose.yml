@@ -3,6 +3,8 @@ services:
     image: ghcr.io/totosgit/bauwagendb:latest
     container_name: bauwagendb
     restart: unless-stopped
+    env_file:
+      - .env
     volumes:
       - ./data:/app/data
     networks:

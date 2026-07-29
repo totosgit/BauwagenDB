@@ -3,7 +3,7 @@
     <!-- Tabs -->
     <div class="drink-tabs">
       <button :class="{ active: tab === 'verkauf' }" @click="tab = 'verkauf'">🛒 Verkauf</button>
-      <button :class="{ active: tab === 'gl' }" @click="tab = 'gl'">📋 Gruppenleiter</button>
+      <button :class="{ active: tab === 'strich' }" @click="tab = 'strich'">📋 Strichliste</button>
       <button :class="{ active: tab === 'verwaltung' }" @click="tab = 'verwaltung'">⚙️ Verwaltung</button>
     </div>
 
@@ -50,89 +50,71 @@
       </div>
     </div>
 
-    <!-- ===== GRUPPENLEITER ===== -->
-    <div v-if="tab === 'gl'">
+    <!-- ===== STRICHLISTE (Papier) ===== -->
+    <div v-if="tab === 'strich'" class="strich-tab">
       <div class="page-header" style="margin-top: 16px;">
         <h2 class="page-title">Strichliste</h2>
-        <div style="display:flex; gap: 8px;">
-          <button class="btn btn-secondary btn-sm" @click="exportPDF" :disabled="!allSummaries.length">📄 PDF</button>
-          <button class="btn btn-primary btn-sm" @click="showAddGL = true">+ GL</button>
-        </div>
+        <button class="btn btn-secondary btn-sm" @click="exportPDF" :disabled="!allSummaries.length">📄 PDF</button>
       </div>
 
-      <!-- Add GL modal inline -->
-      <div v-if="showAddGL" class="inline-form card">
-        <input v-model="newGLName" placeholder="Name des Gruppenleiters" @keyup.enter="createGL" />
-        <div style="display:flex; gap: 8px; margin-top: 8px;">
-          <button class="btn btn-primary" @click="createGL">Hinzufügen</button>
-          <button class="btn btn-secondary" @click="showAddGL = false; newGLName = ''">Abbrechen</button>
-        </div>
+      <div v-if="loadingTally" class="loading">Laden ...</div>
+      <div v-else-if="!drinks.length" class="empty">
+        <div class="icon">🥤</div>
+        <div>Keine Getränke angelegt. Bitte erst unter „Verwaltung" anlegen.</div>
       </div>
 
-      <div v-if="loadingGL" class="loading">Laden ...</div>
-      <div v-else-if="!groupLeaders.length" class="empty">
-        <div class="icon">👤</div>
-        <div>Noch keine Gruppenleiter angelegt</div>
-      </div>
-
-      <div v-else>
-        <!-- Überblick alle Gruppenleiter (immer oben) -->
-        <div class="section-label">Überblick</div>
-        <div v-for="s in allSummaries" :key="s.group_leader_id" class="card" style="margin-top: 8px; padding: 12px;">
-          <div style="display:flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: 600;">{{ s.group_leader_name }}</span>
-            <span class="tag">{{ s.grand_total }} Getränke</span>
+      <template v-else>
+        <!-- Eigener Zettel: hier wird gestrichelt -->
+        <div v-if="mySummary" class="paper paper-own">
+          <div class="paper-head">
+            <span class="paper-name">{{ mySummary.display_name }}</span>
+            <span class="paper-you">das bin ich</span>
           </div>
-          <div v-if="s.entries.length" style="margin-top: 6px; font-size: 13px; color: var(--text-muted);">
-            <span v-for="e in s.entries" :key="e.drink_id" style="margin-right: 10px;">
-              {{ e.drink_emoji || '🥤' }} {{ e.drink_name }}: {{ e.total }}
+
+          <div v-for="drink in drinks" :key="drink.id" class="paper-line">
+            <span class="line-drink">{{ drink.emoji || '🥤' }} {{ drink.name }}</span>
+            <span class="line-marks"><TallyMarks :count="countFor(mySummary, drink.id)" /></span>
+            <span class="line-actions">
+              <button
+                class="ink-btn"
+                :disabled="countFor(mySummary, drink.id) === 0 || busy"
+                @click="minusOne(drink)"
+                aria-label="Strich zurücknehmen"
+              >−</button>
+              <button class="ink-btn plus" :disabled="busy" @click="plusOne(drink)" aria-label="Strich setzen">＋</button>
             </span>
           </div>
-        </div>
 
-        <!-- GL selector -->
-        <div class="section-label" style="margin-top: 20px;">Strichliste</div>
-        <div class="gl-chips">
-          <button
-            v-for="gl in groupLeaders"
-            :key="gl.id"
-            class="gl-chip"
-            :class="{ active: selectedGL?.id === gl.id }"
-            @click="toggleGL(gl)"
-          >{{ gl.name }}</button>
-        </div>
-
-        <!-- Tally board for selected GL -->
-        <div v-if="selectedGL" class="tally-board card" style="margin-top: 12px;">
-          <div class="tally-header">
-            <span class="page-title" style="font-size: 18px;">{{ selectedGL.name }}</span>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn btn-secondary btn-sm" @click="loadSummary">↻</button>
-              <button class="btn btn-sm" style="background:#2a1018; color:#f47070"
-                @click="doResetGL">Abrechnen</button>
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <div v-if="!drinks.length" class="empty">Keine Getränke vorhanden</div>
-          <div v-else>
-            <div v-for="drink in drinks" :key="drink.id" class="tally-row">
-              <span class="tally-drink">{{ drink.emoji || '🥤' }} {{ drink.name }}</span>
-              <div class="tally-marks">
-                <span class="tally-count">{{ tallyCount(drink.id) }}</span>
-                <button class="tally-btn tally-minus" @click="doTallyMinus(drink)" :disabled="tallyCount(drink.id) === 0">−</button>
-                <button class="tally-btn tally-plus" @click="doTallyPlus(drink)">＋</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="divider"></div>
-          <div style="text-align: right; font-weight: 700;">
-            Gesamt: {{ summary?.grand_total ?? 0 }} Getränke
+          <div class="paper-total">
+            <span>Zusammen</span>
+            <span class="total-num">{{ mySummary.grand_total }}</span>
           </div>
         </div>
-      </div>
+
+        <!-- Zettel der anderen: nur lesen -->
+        <div v-if="others.length" class="others-label">Die anderen</div>
+        <div v-for="s in others" :key="s.user_id" class="paper">
+          <div class="paper-head">
+            <router-link :to="'/users/' + s.user_id" class="paper-name link">{{ s.display_name }}</router-link>
+            <button
+              v-if="isAdmin && s.grand_total > 0"
+              class="settle-btn"
+              @click="settle(s)"
+            >abrechnen</button>
+          </div>
+
+          <div v-if="!s.entries.length" class="paper-empty">noch nichts getrunken</div>
+          <div v-for="e in s.entries" :key="e.drink_id" class="paper-line">
+            <span class="line-drink">{{ e.drink_emoji || '🥤' }} {{ e.drink_name }}</span>
+            <span class="line-marks"><TallyMarks :count="e.total" /></span>
+          </div>
+
+          <div v-if="s.entries.length" class="paper-total">
+            <span>Zusammen</span>
+            <span class="total-num">{{ s.grand_total }}</span>
+          </div>
+        </div>
+      </template>
     </div>
 
     <!-- ===== VERWALTUNG ===== -->
@@ -203,13 +185,10 @@
         </div>
       </div>
 
-      <!-- Gruppenleiter management -->
-      <div style="margin-top: 24px;">
-        <div class="section-label">Gruppenleiter verwalten</div>
-        <div v-for="gl in groupLeaders" :key="gl.id" class="card" style="margin-top: 8px; padding: 12px; display: flex; align-items: center; gap: 10px;">
-          <span style="flex:1; font-weight: 600;">{{ gl.name }}</span>
-          <button class="btn btn-sm" style="background:#2a1018; color:#f47070" @click="doDeleteGL(gl)">🗑️</button>
-        </div>
+      <div class="hint-box">
+        Wer auf der Strichliste auftaucht, ergibt sich jetzt aus den Benutzerkonten.
+        Konten freigeben und verwalten kannst du unter
+        <router-link to="/admin">Verwaltung</router-link>.
       </div>
     </div>
   </div>
@@ -219,33 +198,30 @@
 import { ref, onMounted, computed } from 'vue'
 import {
   getDrinks, createDrink, updateDrink, deleteDrink, deductDrink, restockDrink,
-  getGroupLeaders, createGroupLeader, deleteGroupLeader,
-  getTallySummary, getAllSummaries, addTally, resetTallies
+  getAllSummaries, addTally, removeLastTally, resetTallies
 } from '../api/index.js'
 import { useMode } from '../composables/useMode.js'
+import { useAuth } from '../composables/useAuth.js'
 import { generateTallyPDF } from '../utils/tallyPDF.js'
+import TallyMarks from '../components/TallyMarks.vue'
 
 const { mode } = useMode()
+const { isAdmin } = useAuth()
 
-const tab = ref('gl')
+const tab = ref('strich')
 const loading = ref(false)
-const loadingGL = ref(false)
+const loadingTally = ref(false)
+const busy = ref(false)
 
 const drinks = ref([])
-const groupLeaders = ref([])
-const selectedGL = ref(null)
-const summary = ref(null)
 const allSummaries = ref([])
 
-// Strichlisten-Tally-Zwischenspeicher
-const pendingTallies = ref({})  // { drink_id: delta }
+// Das Backend sortiert den eigenen Eintrag nach vorne (is_self).
+const mySummary = computed(() => allSummaries.value.find(s => s.is_self) || null)
+const others = computed(() => allSummaries.value.filter(s => !s.is_self))
 
 // Restock
 const restock = ref({ drinkId: null, amount: 1 })
-
-// GL form
-const showAddGL = ref(false)
-const newGLName = ref('')
 
 // Drink form
 const drinkForm = ref({
@@ -253,10 +229,8 @@ const drinkForm = ref({
   data: { name: '', emoji: '', category: '', price: null, price_gl: null, stock_lager: 0 }
 })
 
-function tallyCount(drinkId) {
-  const entry = summary.value?.entries?.find(e => e.drink_id === drinkId)
-  const base = entry?.total ?? 0
-  return base + (pendingTallies.value[drinkId] ?? 0)
+function countFor(summary, drinkId) {
+  return summary?.entries?.find(e => e.drink_id === drinkId)?.total ?? 0
 }
 
 async function load() {
@@ -265,27 +239,10 @@ async function load() {
   finally { loading.value = false }
 }
 
-async function loadGLData() {
-  loadingGL.value = true
-  try {
-    [groupLeaders.value, allSummaries.value] = await Promise.all([getGroupLeaders(), getAllSummaries()])
-  } finally { loadingGL.value = false }
-}
-
-async function toggleGL(gl) {
-  if (selectedGL.value?.id === gl.id) {
-    selectedGL.value = null
-    return
-  }
-  selectedGL.value = gl
-  pendingTallies.value = {}
-  await loadSummary()
-}
-
-async function loadSummary() {
-  if (!selectedGL.value) return
-  summary.value = await getTallySummary(selectedGL.value.id)
-  allSummaries.value = await getAllSummaries()
+async function loadTallies() {
+  loadingTally.value = true
+  try { allSummaries.value = await getAllSummaries() }
+  finally { loadingTally.value = false }
 }
 
 async function doDeduct(drink) {
@@ -311,41 +268,26 @@ async function doRestock() {
   }
 }
 
-async function doTallyPlus(drink) {
-  await addTally({ group_leader_id: selectedGL.value.id, drink_id: drink.id, count: 1 })
-  await loadSummary()
+async function plusOne(drink) {
+  busy.value = true
+  try {
+    await addTally(drink.id)
+    await loadTallies()
+  } finally { busy.value = false }
 }
 
-async function doTallyMinus(drink) {
-  // Letzten Strich löschen: wir suchen den neuesten Tally-Eintrag für diesen GL+Drink
-  // Einfachster Ansatz: Summary neu laden und prüfen
-  if (tallyCount(drink.id) <= 0) return
-  // Wir speichern keinen tally_id direkt — stattdessen addTally mit count=-1
-  // (Backend prüft das nicht, aber Summe wird korrekt)
-  // Sauberer: eigener DELETE-Endpoint. Hier nutzen wir count=-1 als Korrektur.
-  await addTally({ group_leader_id: selectedGL.value.id, drink_id: drink.id, count: -1 })
-  await loadSummary()
+async function minusOne(drink) {
+  busy.value = true
+  try {
+    await removeLastTally(drink.id)
+    await loadTallies()
+  } finally { busy.value = false }
 }
 
-async function doResetGL() {
-  if (!confirm(`Alle Striche von „${selectedGL.value.name}" zurücksetzen (Abrechnung)?`)) return
-  await resetTallies(selectedGL.value.id)
-  await loadSummary()
-}
-
-async function createGL() {
-  if (!newGLName.value.trim()) return
-  await createGroupLeader(newGLName.value.trim())
-  newGLName.value = ''
-  showAddGL.value = false
-  await loadGLData()
-}
-
-async function doDeleteGL(gl) {
-  if (!confirm(`„${gl.name}" wirklich löschen?`)) return
-  if (selectedGL.value?.id === gl.id) selectedGL.value = null
-  await deleteGroupLeader(gl.id)
-  await loadGLData()
+async function settle(summary) {
+  if (!confirm(`Alle Striche von „${summary.display_name}" zurücksetzen (Abrechnung)?`)) return
+  await resetTallies(summary.user_id)
+  await loadTallies()
 }
 
 function openDrinkForm(drink) {
@@ -387,7 +329,7 @@ async function doDeleteDrink(drink) {
 }
 
 onMounted(async () => {
-  await Promise.all([load(), loadGLData()])
+  await Promise.all([load(), loadTallies()])
 })
 </script>
 
@@ -412,21 +354,111 @@ onMounted(async () => {
 .restock-row { display: flex; gap: 8px; align-items: center; }
 .restock-row select { flex: 1; }
 
-.gl-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
-.gl-chip { padding: 8px 16px; border-radius: 999px; border: 2px solid var(--border); background: var(--white); font-size: 14px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: all 0.15s; }
-.gl-chip.active { background: var(--green); color: white; border-color: var(--green); }
+/* ── Strichliste: Papier & Handschrift ────────────────────────────
+   Bewusst nur auf diese eine Ansicht begrenzt -- der Rest der App
+   bleibt im gewohnten dunklen Theme.
+   Die Schrift kommt vom Gerät (iOS: Bradley Hand / Noteworthy), damit
+   nichts nachgeladen werden muss und es auch offline stimmt. */
+.strich-tab {
+  --ink:        #2c3e57;
+  --ink-soft:   #6b7a90;
+  --ink-red:    #b5443a;
+  --paper:      #f6f0e2;
+  --paper-line: #d9d0bb;
 
-.tally-board { padding: 16px; }
-.tally-header { display: flex; justify-content: space-between; align-items: center; }
-.tally-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
-.tally-drink { font-size: 15px; font-weight: 500; }
-.tally-marks { display: flex; align-items: center; gap: 10px; }
-.tally-count { font-size: 20px; font-weight: 700; min-width: 32px; text-align: center; color: var(--green); }
-.tally-btn { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--border); background: var(--white); font-size: 20px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
-.tally-btn:active { transform: scale(0.9); }
-.tally-btn.tally-plus { background: var(--green); color: white; border-color: var(--green); font-size: 18px; }
-.tally-btn.tally-minus { color: #c62828; border-color: #c62828; }
-.tally-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  font-family: 'Bradley Hand', 'Noteworthy', 'Segoe Print', 'Comic Sans MS', cursive;
+}
+
+.paper {
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 3px;
+  padding: 18px 18px 14px 26px;
+  margin-top: 14px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.45);
+  /* feine Linien wie auf liniertem Papier */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 43px,
+    var(--paper-line) 43px 44px
+  );
+  overflow: hidden;
+}
+/* roter Rand links wie im Schulheft */
+.paper::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 14px;
+  width: 1.5px;
+  background: var(--ink-red);
+  opacity: 0.5;
+}
+.paper-own {
+  box-shadow: 0 3px 14px rgba(0,0,0,0.5);
+  transform: rotate(-0.35deg);
+}
+
+.paper-head {
+  display: flex; align-items: baseline; gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 6px;
+}
+.paper-name { font-size: 26px; font-weight: 700; flex: 1; min-width: 0; }
+.paper-name.link { color: var(--ink); text-decoration: none; }
+.paper-you { font-size: 15px; color: var(--ink-soft); flex-shrink: 0; }
+.settle-btn {
+  background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 16px; color: var(--ink-red);
+  text-decoration: underline; padding: 4px 2px; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.paper-line {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 44px;
+  padding: 4px 0;
+}
+.line-drink { font-size: 19px; flex: 0 0 34%; min-width: 0; }
+.line-marks { flex: 1; min-width: 0; color: var(--ink); }
+.line-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.ink-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 2px solid var(--ink); background: transparent;
+  color: var(--ink); font-size: 20px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.ink-btn:active { transform: scale(0.9); background: rgba(44,62,87,0.12); }
+.ink-btn.plus { background: var(--ink); color: var(--paper); }
+.ink-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+
+.paper-total {
+  display: flex; justify-content: space-between; align-items: baseline;
+  border-top: 2px solid var(--ink);
+  margin-top: 8px; padding-top: 8px;
+  font-size: 19px;
+}
+.total-num { font-size: 27px; font-weight: 700; }
+.paper-empty { color: var(--ink-soft); font-size: 18px; padding: 8px 0; }
+
+.others-label {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-muted);
+  margin: 26px 0 2px;
+}
+
+.hint-box {
+  margin-top: 24px; padding: 14px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 15px; line-height: 1.5;
+  color: var(--text-muted);
+}
+.hint-box a { color: var(--green-light); font-weight: 700; }
 
 .inline-form { margin-bottom: 12px; padding: 14px; }
 .section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; }
@@ -437,8 +469,12 @@ onMounted(async () => {
   .drink-emoji { font-size: 28px; }
   .drink-name { font-size: 13px; }
   .drink-tabs button { font-size: 12px; padding: 10px 4px; }
-  .tally-btn { width: 36px; height: 36px; font-size: 18px; }
-  .gl-chip { padding: 6px 12px; font-size: 13px; }
   .restock-row { flex-wrap: wrap; }
+
+  .paper { padding: 14px 12px 12px 22px; }
+  .paper-name { font-size: 22px; }
+  .line-drink { flex: 0 0 30%; font-size: 17px; }
+  .ink-btn { width: 34px; height: 34px; font-size: 18px; }
+  .total-num { font-size: 24px; }
 }
 </style>

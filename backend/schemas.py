@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+import uuid
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -121,31 +122,96 @@ class DrinkResponse(DrinkBase):
     model_config = {"from_attributes": True}
 
 
-# --- Gruppenleiter ---
+# --- Gruppen (rein beschreibend, ohne Rechtewirkung) ---
 
-class GroupLeaderCreate(BaseModel):
-    name: str
+class GroupCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
+    emoji: Optional[str] = None
+    description: Optional[str] = None
 
 
-class GroupLeaderResponse(BaseModel):
+class GroupUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=50)
+    emoji: Optional[str] = None
+    description: Optional[str] = None
+
+
+class GroupBadge(BaseModel):
+    """Gruppe wie sie als Label im Profil erscheint."""
     id: int
     name: str
-    created_at: datetime
+    emoji: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class GroupResponse(GroupBadge):
+    description: Optional[str] = None
+    member_count: int = 0
+    is_member: bool = False
+
+
+# --- Benutzer ---
+
+class UserRegister(BaseModel):
+    username: str = Field(min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_.-]+$")
+    display_name: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=8)
+    email: Optional[EmailStr] = None
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class UserPublic(BaseModel):
+    """Profil wie es andere Benutzer sehen."""
+    id: uuid.UUID
+    username: str
+    display_name: str
+    is_superuser: bool
+    groups: List[GroupBadge] = []
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserMe(UserPublic):
+    email: Optional[str] = None
+    is_active: bool = True
+
+
+class UserUpdateSelf(BaseModel):
+    display_name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    email: Optional[EmailStr] = None
+    password: Optional[str] = Field(default=None, min_length=8)
+    # Beim Passwortwechsel Pflicht -- verhindert, dass ein fremdes offenes
+    # Geraet einfach das Passwort ueberschreiben kann.
+    current_password: Optional[str] = None
+
+
+class UserAdminUpdate(BaseModel):
+    """Nur fuer Admins: freigeben, sperren, Adminrechte vergeben."""
+    is_active: Optional[bool] = None
+    is_superuser: Optional[bool] = None
+    display_name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+
+
+class PasswordReset(BaseModel):
+    password: str = Field(min_length=8)
 
 
 # --- Strichliste ---
 
 class TallyCreate(BaseModel):
-    group_leader_id: int
     drink_id: int
     count: int = 1
 
 
 class TallyResponse(BaseModel):
     id: int
-    group_leader_id: int
+    user_id: uuid.UUID
     drink_id: int
     count: int
     created_at: datetime
@@ -161,10 +227,46 @@ class TallySummaryEntry(BaseModel):
 
 
 class TallySummary(BaseModel):
-    group_leader_id: int
-    group_leader_name: str
+    user_id: uuid.UUID
+    username: str
+    display_name: str
     entries: List[TallySummaryEntry]
     grand_total: int
+    is_self: bool = False
+
+
+# --- Einkaufsliste ---
+
+class ShoppingItemCreate(BaseModel):
+    name: str
+    quantity: float = 1
+    unit: str = "Stück"
+    urgency: str = "mittel"
+    item_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class ShoppingItemUpdate(BaseModel):
+    name: Optional[str] = None
+    quantity: Optional[float] = None
+    unit: Optional[str] = None
+    urgency: Optional[str] = None
+    notes: Optional[str] = None
+    erledigt: Optional[bool] = None
+
+
+class ShoppingItemResponse(BaseModel):
+    id: int
+    name: str
+    quantity: float
+    unit: str
+    urgency: str
+    item_id: Optional[int] = None
+    notes: Optional[str] = None
+    erledigt: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 # --- Notizen ---

@@ -41,7 +41,7 @@ export function generateTallyPDF(allSummaries, drinks) {
   doc.setTextColor(...BLACK)
 
   // ── Spalten ──────────────────────────────────────────────────
-  const columns = ['Gruppenleiter', 'Getrank', 'Anzahl', 'GL-Preis', 'Gesamt']
+  const columns = ['Name', 'Getrank', 'Anzahl', 'GL-Preis', 'Gesamt']
 
   // ── Zeilen aufbauen ──────────────────────────────────────────
   const rows = []
@@ -65,7 +65,7 @@ export function generateTallyPDF(allSummaries, drinks) {
 
       rows.push({
         data: [
-          glFirst ? summary.group_leader_name : '',
+          glFirst ? summary.display_name : '',
           stripEmoji(entry.drink_name),
           String(entry.total),
           glPrice != null ? `${glPrice.toFixed(2)} EUR` : 'gratis',
@@ -80,7 +80,7 @@ export function generateTallyPDF(allSummaries, drinks) {
     // Zwischensumme pro GL
     rows.push({
       data: [
-        `Gesamt ${summary.group_leader_name}`,
+        `Gesamt ${summary.display_name}`,
         '',
         String(glAmount),
         '',
