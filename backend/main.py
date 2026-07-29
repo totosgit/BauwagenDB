@@ -128,11 +128,24 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 if os.path.isdir(FRONTEND_DIST):
     app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="assets")
 
+    # Diese Dateien duerfen NIE gecacht werden. Der Service Worker steuert
+    # das Update aller uebrigen Dateien -- liegt er im Cache (bei uns:
+    # Cloudflare cachte ihn wegen der .js-Endung 4 Stunden), bekommen die
+    # Geraete die neue Version nie zu sehen. Die Dateien unter /assets/
+    # tragen dagegen einen Hash im Namen und duerfen dauerhaft gecacht werden.
+    NO_CACHE_FILES = {"sw.js", "registerSW.js", "index.html", "manifest.webmanifest"}
+    NO_CACHE_HEADERS = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+
+    def _file_response(path: str) -> FileResponse:
+        if os.path.basename(path) in NO_CACHE_FILES:
+            return FileResponse(path, headers=NO_CACHE_HEADERS)
+        return FileResponse(path)
+
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_frontend(full_path: str):
         index = os.path.join(FRONTEND_DIST, "index.html")
         if not full_path:
-            return FileResponse(index)
+            return _file_response(index)
 
         # os.path.join alleine reicht nicht: "../../data/storage.db" wuerde
         # sonst aus dem dist-Verzeichnis herausfuehren.
@@ -140,7 +153,7 @@ if os.path.isdir(FRONTEND_DIST):
         inside_dist = candidate == FRONTEND_DIST or candidate.startswith(FRONTEND_DIST + os.sep)
 
         if inside_dist and os.path.isfile(candidate):
-            return FileResponse(candidate)
+            return _file_response(candidate)
 
         # Unbekannter Pfad -> SPA laedt und entscheidet selbst (z.B. /items/5)
-        return FileResponse(index)
+        return _file_response(index)
