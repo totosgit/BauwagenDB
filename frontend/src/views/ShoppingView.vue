@@ -81,7 +81,7 @@
       </div>
 
       <!-- Abgehakte auf eigenem Zettel -->
-      <div v-if="erledigte.length" class="zettel" style="margin-top:18px">
+      <div v-if="erledigte.length" class="zettel">
         <div class="zettel-kopf">
           <span class="wer">Erledigt</span>
           <span class="dazu">{{ erledigte.length }}</span>

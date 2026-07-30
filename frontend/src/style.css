@@ -246,8 +246,11 @@ nav a.gesperrt { opacity: 0.32; pointer-events: none; }
   padding: 16px 16px 13px 26px;
   box-shadow: 0 2px 8px rgba(48, 26, 8, 0.28);
   overflow: hidden;
+  /* Grundabstand nach oben: der Klebestreifen ragt 7 px heraus und würde
+     sonst am Eingabefeld darüber kleben. */
+  margin-top: 24px;
 }
-.zettel + .zettel { margin-top: 14px; }
+.zettel + .zettel { margin-top: 20px; }
 /* roter Rand links */
 .zettel::before {
   content: '';
