@@ -72,6 +72,8 @@ export const getMyTally = () => api.get('/tally/me').then(r => r.data)
 export const addTally = (drink_id, count = 1) => api.post('/tally/', { drink_id, count }).then(r => r.data)
 export const removeLastTally = (drink_id) => api.delete(`/tally/last/${drink_id}`)
 export const resetTallies = (user_id) => api.delete(`/tally/reset/${user_id}`)
+// Abrechnung für alle: die ganze Strichliste auf null (nur Admin)
+export const resetAllTallies = () => api.delete('/tally/').then(r => r.data)
 
 // --- Notizen ---
 export const getNotes = () => api.get('/notes/').then(r => r.data)

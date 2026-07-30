@@ -129,3 +129,17 @@ def reset_tallies(
         raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
     db.query(Tally).filter(Tally.user_id == user_id).delete()
     db.commit()
+
+
+@router.delete("/", status_code=200)
+def reset_all_tallies(db: Session = Depends(get_db), _: User = Depends(current_admin)):
+    """Abrechnung für alle auf einmal: die ganze Strichliste auf null.
+
+    Gedacht für den Ablauf am Ende des Lagers -- erst als PDF sichern, dann
+    hier leeren. Gibt zurück, wie viele Striche weg sind, damit die Meldung
+    im Frontend nicht raten muss.
+    """
+    anzahl = db.query(func.coalesce(func.sum(Tally.count), 0)).scalar() or 0
+    zeilen = db.query(Tally).delete()
+    db.commit()
+    return {"striche": int(anzahl), "zeilen": int(zeilen)}

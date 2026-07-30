@@ -16,29 +16,32 @@ export function generateTallyPDF(allSummaries, drinks) {
   const dateStr = now.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
   const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
 
-  const GREEN  = [44, 95, 46]
-  const LGRAY  = [245, 245, 245]
-  const MGRAY  = [200, 200, 200]
-  const BLACK  = [26, 26, 26]
-  const WHITE  = [255, 255, 255]
-  const SUBTOT = [232, 245, 233]
+  // Farben aus der App: Holz, Pergament, Tinte. Vorher stand hier noch
+  // das Grün des alten Themes -- das PDF sah aus wie eine andere Anwendung.
+  const HOLZ    = [203, 169, 124]   // Kopfband
+  const GEBRANNT= [42, 22, 7]       // Beschriftung auf Holz
+  const PERGAM  = [236, 224, 194]   // Zwischensummen
+  const BLATT   = [244, 236, 215]   // jede zweite Zeile
+  const LINIE   = [180, 160, 126]
+  const TINTE   = [58, 50, 38]
+  const WHITE   = [255, 255, 255]
 
   const activeSummaries = allSummaries.filter(s => s.grand_total > 0)
 
   // ── Header-Banner ────────────────────────────────────────────
-  doc.setFillColor(...GREEN)
+  doc.setFillColor(...HOLZ)
   doc.rect(0, 0, 210, 28, 'F')
 
-  doc.setTextColor(...WHITE)
+  doc.setTextColor(...GEBRANNT)
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
   doc.text('Getranke-Abrechnung', 14, 13)
 
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  doc.text('Bauwagen DB', 14, 21)
+  doc.text('Blauwagen', 14, 21)
   doc.text(`Erstellt am ${dateStr} um ${timeStr} Uhr`, 210 - 14, 21, { align: 'right' })
-  doc.setTextColor(...BLACK)
+  doc.setTextColor(...TINTE)
 
   // ── Spalten ──────────────────────────────────────────────────
   const columns = ['Name', 'Getrank', 'Anzahl', 'GL-Preis', 'Gesamt']
@@ -111,12 +114,12 @@ export function generateTallyPDF(allSummaries, drinks) {
       font: 'helvetica',
       fontSize: 11,
       cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
-      textColor: BLACK,
-      lineColor: MGRAY,
+      textColor: TINTE,
+      lineColor: LINIE,
     },
     headStyles: {
-      fillColor: GREEN,
-      textColor: WHITE,
+      fillColor: HOLZ,
+      textColor: GEBRANNT,
       fontStyle: 'bold',
     },
     columnStyles: {
@@ -124,19 +127,19 @@ export function generateTallyPDF(allSummaries, drinks) {
       3: { halign: 'right' },
       4: { halign: 'right' },
     },
-    alternateRowStyles: { fillColor: LGRAY },
+    alternateRowStyles: { fillColor: BLATT },
     didParseCell(data) {
       const rowMeta = rows[data.row.index]
       if (!rowMeta) return
       if (rowMeta.isGrandTotal) {
-        data.cell.styles.fillColor = GREEN
+        data.cell.styles.fillColor = GEBRANNT
         data.cell.styles.textColor = WHITE
         data.cell.styles.fontStyle = 'bold'
         data.cell.styles.fontSize = 12
       } else if (rowMeta.isSubtotal) {
-        data.cell.styles.fillColor = SUBTOT
+        data.cell.styles.fillColor = PERGAM
         data.cell.styles.fontStyle = 'bold'
-        data.cell.styles.textColor = GREEN
+        data.cell.styles.textColor = GEBRANNT
       }
     },
   })
@@ -148,7 +151,7 @@ export function generateTallyPDF(allSummaries, drinks) {
     doc.setFontSize(9)
     doc.setTextColor(150)
     doc.text(`Seite ${i} von ${pageCount}`, 210 - 14, 297 - 8, { align: 'right' })
-    doc.text('Bauwagen DB', 14, 297 - 8)
+    doc.text('Blauwagen', 14, 297 - 8)
   }
 
   const filename = `Strichliste_${dateStr.replace(/\./g, '-')}_${timeStr.replace(':', '')}.pdf`

@@ -66,6 +66,10 @@
           Schon ein Konto?
           <router-link to="/login">Anmelden</router-link>
         </div>
+        <div class="login-recht">
+          Mit der Registrierung nimmst du den
+          <router-link to="/datenschutz">Datenschutzhinweis</router-link> zur Kenntnis.
+        </div>
       </template>
     </div>
   </div>
@@ -159,6 +163,10 @@ async function submit() {
   font-size: 15px; font-weight: 600; line-height: 1.4;
 }
 .login-foot { margin-top: 22px; font-size: 15px; color: var(--text-muted); }
+.login-recht {
+  margin-top: 14px; font-size: 13.5px; color: var(--tinte-blass); line-height: 1.4;
+}
+.login-recht a { color: var(--gebrannt); font-weight: 700; }
 .login-foot a { color: var(--green-light); font-weight: 700; text-decoration: none; margin-left: 4px; }
 
 .done-box {

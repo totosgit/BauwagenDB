@@ -24,6 +24,40 @@
       <Icon name="weiter" class="icon" />
     </router-link>
 
+    <!-- Abrechnung: erst sichern, dann leeren. Auf der Strichliste selbst
+         sieht jeder nur seinen eigenen Zettel -- die Gesamtübersicht ist
+         genau dieses PDF. -->
+    <div class="card abrechnung">
+      <div class="ab-kopf">
+        <Icon name="pdf" class="icon gross" />
+        <span class="ov-text">
+          <span class="ov-titel">Getränke-Abrechnung</span>
+          <span class="ov-unter">
+            <template v-if="strichSumme === null">Wird geladen …</template>
+            <template v-else-if="strichSumme === 0">Zurzeit sind keine Striche gesetzt.</template>
+            <template v-else>
+              {{ strichSumme }} {{ strichSumme === 1 ? 'Strich' : 'Striche' }}
+              von {{ personenMitStrichen }} {{ personenMitStrichen === 1 ? 'Person' : 'Personen' }}
+            </template>
+          </span>
+        </span>
+      </div>
+
+      <div class="ab-knoepfe">
+        <button class="btn btn-primary" :disabled="!strichSumme || exportiert" @click="exportPDF">
+          <Icon name="pdf" class="icon" />{{ exportiert ? 'Erstellt …' : 'Als PDF sichern' }}
+        </button>
+        <button class="btn btn-danger" :disabled="!strichSumme || leert" @click="alleZuruecksetzen">
+          <Icon name="muell" class="icon" />{{ leert ? 'Läuft …' : 'Alles auf null' }}
+        </button>
+      </div>
+      <p class="ab-hinweis">
+        Erst das PDF sichern, dann zurücksetzen – gelöschte Striche lassen sich
+        nicht wiederherstellen.
+      </p>
+      <div v-if="abMeldung" class="hint ok">{{ abMeldung }}</div>
+    </div>
+
     <div v-if="loading" class="loading">Laden ...</div>
 
     <!-- ===== FREIGABEN ===== -->
@@ -97,11 +131,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   getPendingUsers, getUsers, adminUpdateUser, deleteUser, adminResetPassword,
   getGroups, createGroup, deleteGroup,
+  getAllSummaries, getDrinks, resetAllTallies,
 } from '../api/index.js'
+import { generateTallyPDF } from '../utils/tallyPDF.js'
 import { useAuth } from '../composables/useAuth.js'
 import Icon from '../components/Icon.vue'
 
@@ -115,14 +151,56 @@ const groups = ref([])
 const newGroup = ref({ name: '', emoji: '' })
 const groupErr = ref('')
 
+// ── Getränke-Abrechnung ──
+const summaries = ref([])
+const drinks = ref([])
+const strichSumme = ref(null)      // null = noch nicht geladen
+const exportiert = ref(false)
+const leert = ref(false)
+const abMeldung = ref('')
+
+const personenMitStrichen = computed(
+  () => summaries.value.filter(s => s.grand_total > 0).length
+)
+
 async function load() {
   loading.value = true
   try {
-    [pending.value, users.value, groups.value] = await Promise.all([
-      getPendingUsers(), getUsers(), getGroups(),
-    ])
+    [pending.value, users.value, groups.value, summaries.value, drinks.value] =
+      await Promise.all([
+        getPendingUsers(), getUsers(), getGroups(), getAllSummaries(), getDrinks(),
+      ])
+    strichSumme.value = summaries.value.reduce((n, s) => n + s.grand_total, 0)
   } finally {
     loading.value = false
+  }
+}
+
+function exportPDF() {
+  exportiert.value = true
+  try {
+    generateTallyPDF(summaries.value, drinks.value)
+    abMeldung.value = 'PDF erstellt. Danach kannst du zurücksetzen.'
+  } finally {
+    // kurz gesperrt, damit ein Doppeltipp nicht zwei Dateien erzeugt
+    setTimeout(() => { exportiert.value = false }, 1200)
+  }
+}
+
+async function alleZuruecksetzen() {
+  const frage = `Wirklich ALLE ${strichSumme.value} Striche löschen?\n\n`
+    + 'Das betrifft jede Person und lässt sich nicht rückgängig machen. '
+    + 'Hast du das PDF gesichert?'
+  if (!confirm(frage)) return
+
+  leert.value = true
+  abMeldung.value = ''
+  try {
+    const ergebnis = await resetAllTallies()
+    abMeldung.value = `${ergebnis.striche} Striche gelöscht. Die Liste ist auf null.`
+    await load()
+  } finally {
+    leert.value = false
   }
 }
 
@@ -204,6 +282,17 @@ onMounted(load)
   color: var(--gebrannt);
 }
 .ov-unter { font-size: 14px; color: var(--tinte-blass); line-height: 1.3; }
+
+/* Abrechnung: sichern, dann leeren */
+.abrechnung { margin-bottom: 16px; }
+.ab-kopf { display: flex; align-items: center; gap: 14px; }
+.ab-kopf .gross { font-size: 30px; color: var(--gebrannt); flex-shrink: 0; }
+.ab-knoepfe { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 14px; }
+.ab-knoepfe .btn { flex: 1; min-width: 150px; }
+.ab-hinweis {
+  font-size: 13.5px; color: var(--tinte-blass);
+  line-height: 1.35; margin-top: 10px; max-width: 52ch;
+}
 .pill {
   background: var(--rot); color: #fff; border-radius: 999px;
   padding: 1px 8px; font-size: 12px; font-weight: 800;

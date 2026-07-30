@@ -12,6 +12,7 @@ import LoginView from './views/LoginView.vue'
 import RegisterView from './views/RegisterView.vue'
 import ProfileView from './views/ProfileView.vue'
 import AdminView from './views/AdminView.vue'
+import DatenschutzView from './views/DatenschutzView.vue'
 import { useAuth } from './composables/useAuth.js'
 import './style.css'
 
@@ -20,6 +21,9 @@ const router = createRouter({
   routes: [
     { path: '/login', component: LoginView, meta: { public: true } },
     { path: '/register', component: RegisterView, meta: { public: true } },
+    // Muss ohne Anmeldung lesbar sein -- eine Datenschutzerklärung hinter
+    // dem Login hilft niemandem.
+    { path: '/datenschutz', component: DatenschutzView, meta: { public: true } },
     { path: '/', redirect: '/items' },
     // Die Suche ist keine eigene Seite mehr, sie steckt als Filter in der
     // Dinge-Liste. Alte Lesezeichen sollen trotzdem funktionieren.

@@ -36,7 +36,7 @@
     <router-view :key="mode" />
 
     <nav>
-      <router-link to="/items"><Icon name="dinge" class="icon" />Dinge</router-link>
+      <router-link to="/items"><Icon name="dinge" class="icon" />Lager</router-link>
       <!-- Im Jahresbetrieb nicht nutzbar, aber sichtbar: sonst wundert man
            sich, wo der Tab hin ist. -->
       <router-link
@@ -68,7 +68,7 @@ const { user, isAdmin } = useAuth()
 const pendingCount = ref(0)
 
 // Login und Registrierung bringen ihr eigenes Layout mit (ohne Nav/Header).
-const isAuthPage = computed(() => ['/login', '/register'].includes(route.path))
+const isAuthPage = computed(() => ['/login', '/register', '/datenschutz'].includes(route.path))
 
 const initials = computed(() => {
   const name = user.value?.display_name || ''

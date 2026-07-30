@@ -54,7 +54,6 @@
     <div v-if="tab === 'strich'" class="strich-tab">
       <div class="page-header" style="margin-top: 16px;">
         <h2 class="page-title">Strichliste</h2>
-        <button class="btn btn-secondary btn-sm" @click="exportPDF" :disabled="!allSummaries.length"><Icon name="pdf" class="icon" />PDF</button>
       </div>
 
       <div v-if="loadingTally" class="loading">Laden …</div>
@@ -92,8 +91,10 @@
           </div>
         </div>
 
-        <!-- Zettel der anderen: nur lesen -->
-        <div v-if="others.length" class="others-label">Die anderen</div>
+        <!-- Die anderen sieht nur die Verwaltung: dort sitzt das Abrechnen.
+             Für alle übrigen bleibt die Seite der eigene Zettel. -->
+        <div v-if="isAdmin && others.length" class="others-label">Die anderen</div>
+        <template v-if="isAdmin">
         <div v-for="s in others" :key="s.user_id" class="zettel">
           <div class="zettel-kopf">
             <router-link :to="'/users/' + s.user_id" class="wer link">{{ s.display_name }}</router-link>
@@ -115,6 +116,7 @@
             <b>{{ s.grand_total }}</b>
           </div>
         </div>
+        </template>
       </template>
     </div>
 
@@ -203,7 +205,6 @@ import {
 } from '../api/index.js'
 import { useMode } from '../composables/useMode.js'
 import { useAuth } from '../composables/useAuth.js'
-import { generateTallyPDF } from '../utils/tallyPDF.js'
 import TallyMarks from '../components/TallyMarks.vue'
 import Icon from '../components/Icon.vue'
 
@@ -352,10 +353,6 @@ async function saveDrink() {
   } catch (e) {
     drinkForm.value.error = e.response?.data?.detail || 'Fehler beim Speichern'
   }
-}
-
-function exportPDF() {
-  generateTallyPDF(allSummaries.value, drinks.value)
 }
 
 async function doDeleteDrink(drink) {

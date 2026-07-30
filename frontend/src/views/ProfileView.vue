@@ -95,6 +95,10 @@
             <Icon name="abmelden" class="icon" />Abmelden
           </button>
         </div>
+
+        <div class="rechtlich">
+          <router-link to="/datenschutz">Datenschutz &amp; Verantwortlicher</router-link>
+        </div>
       </template>
 
       <div v-else style="margin-top:22px">
@@ -254,6 +258,13 @@ watch(() => route.params.id, load)
 .group-name { font-weight: 700; font-size: 16px; }
 .group-meta { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 .muted { color: var(--text-muted); font-size: 15px; line-height: 1.4; }
+.rechtlich { margin-top: 20px; text-align: center; }
+.rechtlich a {
+  font-family: var(--schrift-stempel);
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--tinte-blass); text-decoration: none;
+}
+
 .hint { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
 .hint.ok { color: var(--green-light); }
 .hint.err { color: var(--rot); }

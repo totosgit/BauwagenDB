@@ -38,6 +38,9 @@
         Noch kein Konto?
         <router-link to="/register">Registrieren</router-link>
       </div>
+      <div class="login-recht">
+        <router-link to="/datenschutz">Datenschutz</router-link>
+      </div>
     </div>
   </div>
 </template>
@@ -121,5 +124,9 @@ async function submit() {
 .login-foot {
   margin-top: 22px; font-size: 15px; color: var(--text-muted);
 }
+.login-recht {
+  margin-top: 14px; font-size: 13.5px; color: var(--tinte-blass); line-height: 1.4;
+}
+.login-recht a { color: var(--gebrannt); font-weight: 700; }
 .login-foot a { color: var(--green-light); font-weight: 700; text-decoration: none; margin-left: 4px; }
 </style>
