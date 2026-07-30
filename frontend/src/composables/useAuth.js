@@ -27,12 +27,34 @@ export function useAuth() {
     return refresh()
   }
 
+  /**
+   * Räumt die zwischengespeicherten Daten weg.
+   *
+   * Der Service Worker legt Listen und Fotos ab, damit die App im Lager ohne
+   * Empfang funktioniert. Nach dem Abmelden hätte das nichts mehr auf dem
+   * Gerät zu suchen -- gerade wenn sich mehrere ein Tablet teilen.
+   */
+  async function cachesLeeren() {
+    if (!('caches' in window)) return
+    try {
+      const namen = await caches.keys()
+      await Promise.all(
+        namen
+          .filter(n => n.startsWith('blauwagen-'))
+          .map(n => caches.delete(n))
+      )
+    } catch {
+      // Kein Grund, das Abmelden daran scheitern zu lassen
+    }
+  }
+
   async function logout() {
     try {
       await apiLogout()
     } finally {
       user.value = null
       loaded.value = false
+      await cachesLeeren()
     }
   }
 

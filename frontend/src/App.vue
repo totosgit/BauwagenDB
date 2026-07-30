@@ -32,6 +32,13 @@
       </router-link>
     </header>
 
+    <!-- Ohne Netz zeigt die App den letzten bekannten Stand. Das muss man
+         sehen, sonst sucht man im Lager nach etwas, das längst weg ist. -->
+    <div v-if="!online" class="ohne-netz">
+      <Icon name="warten" class="icon" />
+      Kein Netz – letzter bekannter Stand
+    </div>
+
     <!-- key=mode erzwingt Neu-Laden der View wenn Modus wechselt -->
     <router-view :key="mode" />
 
@@ -54,7 +61,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMode } from './composables/useMode.js'
 import { useAuth } from './composables/useAuth.js'
@@ -66,6 +73,17 @@ const { mode, setMode } = useMode()
 const { user, isAdmin } = useAuth()
 
 const pendingCount = ref(0)
+const online = ref(navigator.onLine)
+
+function netzStatus() { online.value = navigator.onLine }
+onMounted(() => {
+  window.addEventListener('online', netzStatus)
+  window.addEventListener('offline', netzStatus)
+})
+onUnmounted(() => {
+  window.removeEventListener('online', netzStatus)
+  window.removeEventListener('offline', netzStatus)
+})
 
 // Login und Registrierung bringen ihr eigenes Layout mit (ohne Nav/Header).
 const isAuthPage = computed(() => ['/login', '/register', '/datenschutz'].includes(route.path))
@@ -108,6 +126,24 @@ watch(() => [isAdmin.value, route.path], async () => {
   z-index: 0;
   pointer-events: none;
 }
+
+/* ── Hinweis ohne Netz ──────────────────────────────────────────── */
+.ohne-netz {
+  position: relative;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: var(--rot);
+  color: #fdf3e6;
+  font-family: var(--schrift-stempel);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.ohne-netz .icon { font-size: 15px; }
 
 /* ── Obere Holzleiste ───────────────────────────────────────────── */
 .holzleiste {

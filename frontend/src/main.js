@@ -1,7 +1,6 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
-import LocationsView from './views/LocationsView.vue'
 import ItemsView from './views/ItemsView.vue'
 import ItemFormView from './views/ItemFormView.vue'
 import ItemDetailView from './views/ItemDetailView.vue'
@@ -11,8 +10,13 @@ import ShoppingView from './views/ShoppingView.vue'
 import LoginView from './views/LoginView.vue'
 import RegisterView from './views/RegisterView.vue'
 import ProfileView from './views/ProfileView.vue'
-import AdminView from './views/AdminView.vue'
-import DatenschutzView from './views/DatenschutzView.vue'
+// Diese drei ruft man selten auf. Nachladen statt mitliefern haelt die
+// erste Ladung klein -- die Lagerortverwaltung bringt zusaetzlich die
+// Ziehen-und-Ablegen-Bibliothek mit.
+const LocationsView = () => import('./views/LocationsView.vue')
+const AdminView = () => import('./views/AdminView.vue')
+const DatenschutzView = () => import('./views/DatenschutzView.vue')
+
 import { useAuth } from './composables/useAuth.js'
 import './style.css'
 

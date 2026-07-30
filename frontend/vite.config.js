@@ -25,18 +25,42 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Die Regeln pruefen den Pfad ueber ein URL-Objekt. Vorher standen
+        // hier Ausdruecke wie /^\/api\//, die nie zutrafen: Workbox vergleicht
+        // gegen die vollstaendige Adresse (https://.../api/...), nicht gegen
+        // den Pfad. Dadurch wurde bis jetzt gar nichts zwischengespeichert
+        // und die App zeigte ohne Netz ein leeres Geruest.
         runtimeCaching: [
           {
-            urlPattern: /^\/api\//,
+            // Daten: erst das Netz, nach 4 s der letzte bekannte Stand.
+            // Ohne /api/auth/ -- eine gecachte Anmeldeantwort waere Unsinn.
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin
+              && url.pathname.startsWith('/api/')
+              && !url.pathname.startsWith('/api/auth/'),
             handler: 'NetworkFirst',
-            options: { cacheName: 'api-cache', networkTimeoutSeconds: 5 }
+            method: 'GET',
+            options: {
+              cacheName: 'blauwagen-daten',
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              // Fehlerantworten (401, 500) nie ablegen
+              cacheableResponse: { statuses: [200] },
+            },
           },
           {
-            urlPattern: /^\/images\//,
+            // Fotos aendern sich nie -- der Dateiname ist eine UUID.
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname.startsWith('/images/'),
             handler: 'CacheFirst',
-            options: { cacheName: 'image-cache' }
-          }
-        ]
+            method: 'GET',
+            options: {
+              cacheName: 'blauwagen-bilder',
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+        ],
       }
     })
   ],

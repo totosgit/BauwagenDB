@@ -137,7 +137,6 @@ import {
   getGroups, createGroup, deleteGroup,
   getAllSummaries, getDrinks, resetAllTallies,
 } from '../api/index.js'
-import { generateTallyPDF } from '../utils/tallyPDF.js'
 import { useAuth } from '../composables/useAuth.js'
 import Icon from '../components/Icon.vue'
 
@@ -176,11 +175,18 @@ async function load() {
   }
 }
 
-function exportPDF() {
+async function exportPDF() {
   exportiert.value = true
+  abMeldung.value = ''
   try {
+    // Erst hier laden: die PDF-Bibliothek ist gross und wird nur in der
+    // Verwaltung gebraucht. Im Hauptbundle hat sie alle Seitenaufrufe
+    // verlangsamt, auch die von Leuten, die nie ein PDF erzeugen.
+    const { generateTallyPDF } = await import('../utils/tallyPDF.js')
     generateTallyPDF(summaries.value, drinks.value)
     abMeldung.value = 'PDF erstellt. Danach kannst du zurücksetzen.'
+  } catch {
+    abMeldung.value = 'PDF konnte nicht erstellt werden.'
   } finally {
     // kurz gesperrt, damit ein Doppeltipp nicht zwei Dateien erzeugt
     setTimeout(() => { exportiert.value = false }, 1200)
