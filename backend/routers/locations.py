@@ -1,8 +1,16 @@
+"""Lagerorte.
+
+Lesen darf jeder Angemeldete -- der Zuordnungs-Assistent im
+Gegenstandsformular braucht die Liste. Anlegen, umbauen und loeschen ist
+Verwaltungsarbeit und deshalb Admins vorbehalten.
+"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+
+from auth import current_admin, current_user
 from database import get_db
-from models import Location, Item
+from models import Location, Item, User
 from schemas import LocationCreate, LocationUpdate, LocationResponse, LocationTree
 from utils import build_location_response, build_location_tree
 
@@ -51,12 +59,12 @@ def normalize_and_commit(db: Session, siblings: list[Location]):
 
 
 @router.get("/types", response_model=dict)
-def get_valid_types():
+def get_valid_types(_: User = Depends(current_user)):
     return VALID_CHILDREN
 
 
 @router.get("/", response_model=list[LocationResponse])
-def list_locations(mode: str | None = None, db: Session = Depends(get_db)):
+def list_locations(mode: str | None = None, db: Session = Depends(get_db), _: User = Depends(current_user)):
     q = db.query(Location).order_by(Location.sort_order, Location.id)
     if mode:
         q = q.filter(Location.storage_mode.in_([mode, "both"]))
@@ -64,7 +72,7 @@ def list_locations(mode: str | None = None, db: Session = Depends(get_db)):
 
 
 @router.get("/tree", response_model=list[LocationTree])
-def get_tree(mode: str | None = None, db: Session = Depends(get_db)):
+def get_tree(mode: str | None = None, db: Session = Depends(get_db), _: User = Depends(current_user)):
     q = (
         db.query(Location)
         .filter(Location.parent_id == None)
@@ -76,7 +84,7 @@ def get_tree(mode: str | None = None, db: Session = Depends(get_db)):
 
 
 @router.get("/{location_id}", response_model=LocationTree)
-def get_location(location_id: int, db: Session = Depends(get_db)):
+def get_location(location_id: int, db: Session = Depends(get_db), _: User = Depends(current_user)):
     loc = db.get(Location, location_id)
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
@@ -84,7 +92,7 @@ def get_location(location_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=LocationResponse, status_code=201)
-def create_location(data: LocationCreate, db: Session = Depends(get_db)):
+def create_location(data: LocationCreate, db: Session = Depends(get_db), _: User = Depends(current_admin)):
     parent = None
     if data.parent_id:
         parent = db.get(Location, data.parent_id)
@@ -104,7 +112,7 @@ def create_location(data: LocationCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{location_id}", response_model=LocationResponse)
-def update_location(location_id: int, data: LocationUpdate, db: Session = Depends(get_db)):
+def update_location(location_id: int, data: LocationUpdate, db: Session = Depends(get_db), _: User = Depends(current_admin)):
     loc = db.get(Location, location_id)
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
@@ -120,7 +128,7 @@ def update_location(location_id: int, data: LocationUpdate, db: Session = Depend
 
 
 @router.post("/reorder", status_code=204)
-def reorder_locations(ordered_ids: list[int], db: Session = Depends(get_db)):
+def reorder_locations(ordered_ids: list[int], db: Session = Depends(get_db), _: User = Depends(current_admin)):
     """Setzt die sort_order aller Geschwister auf Basis der übergebenen ID-Reihenfolge."""
     for i, loc_id in enumerate(ordered_ids):
         loc = db.get(Location, loc_id)
@@ -130,7 +138,7 @@ def reorder_locations(ordered_ids: list[int], db: Session = Depends(get_db)):
 
 
 @router.patch("/{location_id}/move", response_model=LocationResponse)
-def move_location(location_id: int, direction: str, db: Session = Depends(get_db)):
+def move_location(location_id: int, direction: str, db: Session = Depends(get_db), _: User = Depends(current_admin)):
     """Verschiebt einen Lagerort in der Reihenfolge seiner Geschwister nach oben oder unten."""
     loc = db.get(Location, location_id)
     if not loc:
@@ -157,7 +165,7 @@ def move_location(location_id: int, direction: str, db: Session = Depends(get_db
 
 
 @router.delete("/{location_id}", status_code=204)
-def delete_location(location_id: int, db: Session = Depends(get_db)):
+def delete_location(location_id: int, db: Session = Depends(get_db), _: User = Depends(current_admin)):
     loc = db.get(Location, location_id)
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")

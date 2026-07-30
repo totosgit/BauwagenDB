@@ -57,45 +57,46 @@
         <button class="btn btn-secondary btn-sm" @click="exportPDF" :disabled="!allSummaries.length"><Icon name="pdf" class="icon" />PDF</button>
       </div>
 
-      <div v-if="loadingTally" class="loading">Laden ...</div>
+      <div v-if="loadingTally" class="loading">Laden …</div>
       <div v-else-if="!drinks.length" class="empty">
         <Icon name="getraenke" class="icon" />
-        <div>Keine Getränke angelegt. Bitte erst unter „Verwaltung" anlegen.</div>
+        <div class="hinweis">Keine Getränke angelegt. Bitte erst unter „Verwaltung" anlegen.</div>
       </div>
 
       <template v-else>
+        <div v-if="strichFehler" class="strich-fehler">{{ strichFehler }}</div>
         <!-- Eigener Zettel: hier wird gestrichelt -->
-        <div v-if="mySummary" class="paper paper-own">
-          <div class="paper-head">
-            <span class="paper-name">{{ mySummary.display_name }}</span>
-            <span class="paper-you">das bin ich</span>
+        <div v-if="mySummary" class="zettel zettel-schief">
+          <div class="zettel-kopf">
+            <span class="wer">{{ mySummary.display_name }}</span>
+            <span class="dazu">das bin ich</span>
           </div>
 
-          <div v-for="drink in drinks" :key="drink.id" class="paper-line">
+          <div v-for="drink in drinks" :key="drink.id" class="zettel-zeile">
             <span class="line-drink"><span v-if="drink.emoji">{{ drink.emoji }}</span><Icon v-else name="getraenke" class="icon" />{{ drink.name }}</span>
             <span class="line-marks"><TallyMarks :count="countFor(mySummary, drink.id)" /></span>
             <span class="line-actions">
               <button
                 class="ink-btn"
-                :disabled="countFor(mySummary, drink.id) === 0 || busy"
+                :disabled="countFor(mySummary, drink.id) === 0"
                 @click="minusOne(drink)"
                 aria-label="Strich zurücknehmen"
               ><Icon name="minus" class="icon" /></button>
-              <button class="ink-btn plus" :disabled="busy" @click="plusOne(drink)" aria-label="Strich setzen"><Icon name="plus" class="icon" /></button>
+              <button class="ink-btn plus" @click="plusOne(drink)" aria-label="Strich setzen"><Icon name="plus" class="icon" /></button>
             </span>
           </div>
 
-          <div class="paper-total">
+          <div class="zettel-summe">
             <span>Zusammen</span>
-            <span class="total-num">{{ mySummary.grand_total }}</span>
+            <b>{{ mySummary.grand_total }}</b>
           </div>
         </div>
 
         <!-- Zettel der anderen: nur lesen -->
         <div v-if="others.length" class="others-label">Die anderen</div>
-        <div v-for="s in others" :key="s.user_id" class="paper">
-          <div class="paper-head">
-            <router-link :to="'/users/' + s.user_id" class="paper-name link">{{ s.display_name }}</router-link>
+        <div v-for="s in others" :key="s.user_id" class="zettel">
+          <div class="zettel-kopf">
+            <router-link :to="'/users/' + s.user_id" class="wer link">{{ s.display_name }}</router-link>
             <button
               v-if="isAdmin && s.grand_total > 0"
               class="settle-btn"
@@ -104,14 +105,14 @@
           </div>
 
           <div v-if="!s.entries.length" class="paper-empty">noch nichts getrunken</div>
-          <div v-for="e in s.entries" :key="e.drink_id" class="paper-line">
+          <div v-for="e in s.entries" :key="e.drink_id" class="zettel-zeile">
             <span class="line-drink"><span v-if="e.drink_emoji">{{ e.drink_emoji }}</span><Icon v-else name="getraenke" class="icon" />{{ e.drink_name }}</span>
             <span class="line-marks"><TallyMarks :count="e.total" /></span>
           </div>
 
-          <div v-if="s.entries.length" class="paper-total">
+          <div v-if="s.entries.length" class="zettel-summe">
             <span>Zusammen</span>
-            <span class="total-num">{{ s.grand_total }}</span>
+            <b>{{ s.grand_total }}</b>
           </div>
         </div>
       </template>
@@ -212,7 +213,7 @@ const { isAdmin } = useAuth()
 const tab = ref('strich')
 const loading = ref(false)
 const loadingTally = ref(false)
-const busy = ref(false)
+const strichFehler = ref('')
 
 const drinks = ref([])
 const allSummaries = ref([])
@@ -240,10 +241,38 @@ async function load() {
   finally { loading.value = false }
 }
 
-async function loadTallies() {
-  loadingTally.value = true
+/**
+ * still = ohne Ladeanzeige. Beim Strichmachen darf die Liste nicht
+ * verschwinden und neu aufgebaut werden -- das war beim Tippen störend.
+ */
+async function loadTallies({ still = false } = {}) {
+  if (!still) loadingTally.value = true
   try { allSummaries.value = await getAllSummaries() }
-  finally { loadingTally.value = false }
+  finally { if (!still) loadingTally.value = false }
+}
+
+/** Zählt lokal hoch oder runter, damit der Strich sofort dasteht. */
+function zaehleLokal(drink, delta) {
+  const s = mySummary.value
+  if (!s) return
+  let e = s.entries.find(x => x.drink_id === drink.id)
+  if (!e) {
+    if (delta < 0) return
+    e = { drink_id: drink.id, drink_name: drink.name, drink_emoji: drink.emoji, total: 0 }
+    s.entries.push(e)
+    s.entries.sort((a, b) => a.drink_name.localeCompare(b.drink_name, 'de'))
+  }
+  e.total += delta
+  if (e.total <= 0) s.entries = s.entries.filter(x => x !== e)
+  s.grand_total = Math.max(0, s.grand_total + delta)
+}
+
+// Nach dem Tippen einmal still nachladen -- so tauchen auch die Striche
+// der anderen auf, ohne dass es beim Tippen ruckelt.
+let abgleichTimer = null
+function spaeterAbgleichen() {
+  clearTimeout(abgleichTimer)
+  abgleichTimer = setTimeout(() => loadTallies({ still: true }), 2000)
 }
 
 async function doDeduct(drink) {
@@ -270,25 +299,31 @@ async function doRestock() {
 }
 
 async function plusOne(drink) {
-  busy.value = true
+  zaehleLokal(drink, +1)
   try {
     await addTally(drink.id)
-    await loadTallies()
-  } finally { busy.value = false }
+    spaeterAbgleichen()
+  } catch {
+    zaehleLokal(drink, -1)   // zurücknehmen, der Strich ging nicht durch
+    strichFehler.value = 'Strich konnte nicht gespeichert werden'
+  }
 }
 
 async function minusOne(drink) {
-  busy.value = true
+  zaehleLokal(drink, -1)
   try {
     await removeLastTally(drink.id)
-    await loadTallies()
-  } finally { busy.value = false }
+    spaeterAbgleichen()
+  } catch {
+    zaehleLokal(drink, +1)
+    strichFehler.value = 'Konnte nicht zurückgenommen werden'
+  }
 }
 
 async function settle(summary) {
   if (!confirm(`Alle Striche von „${summary.display_name}" zurücksetzen (Abrechnung)?`)) return
   await resetTallies(summary.user_id)
-  await loadTallies()
+  await loadTallies({ still: true })
 }
 
 function openDrinkForm(drink) {
@@ -369,88 +404,65 @@ onMounted(async () => {
   font-family: var(--schrift-hand);
 }
 
-.paper {
-  position: relative;
-  background: var(--paper);
-  color: var(--ink);
-  border-radius: var(--radius-sm);
-  padding: 18px 18px 14px 26px;
-  margin-top: 14px;
-  box-shadow: 0 2px 8px rgba(48, 26, 8, 0.28);
-  /* feine Linien wie auf liniertem Papier */
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0 43px,
-    var(--paper-line) 43px 44px
-  );
-  overflow: hidden;
-}
-/* roter Rand links wie im Schulheft */
-.paper::before {
-  content: '';
-  position: absolute;
-  top: 0; bottom: 0; left: 14px;
-  width: 1.5px;
-  background: var(--ink-red);
-  opacity: 0.5;
-}
-.paper-own {
-  box-shadow: 0 3px 12px rgba(48, 26, 8, 0.34);
-  transform: rotate(-0.35deg);
-}
 
-.paper-head {
-  display: flex; align-items: baseline; gap: 10px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--ink);
-  margin-bottom: 6px;
-}
-.paper-name { font-size: 26px; font-weight: 700; flex: 1; min-width: 0; }
-.paper-name.link { color: var(--ink); text-decoration: none; }
-.paper-you { font-size: 15px; color: var(--ink-soft); flex-shrink: 0; }
-.settle-btn {
-  background: none; border: none; cursor: pointer;
-  font-family: inherit; font-size: 16px; color: var(--ink-red);
-  text-decoration: underline; padding: 4px 2px; flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
-}
 
-.paper-line {
-  display: flex; align-items: center; gap: 10px;
-  min-height: 44px;
-  padding: 4px 0;
+/* Aufteilung einer Strichzeile: Getränk | Striche | Knöpfe.
+   Der Zettel selbst (Papier, Linien, Kopf, Summe) kommt aus style.css. */
+.line-drink {
+  font-family: var(--schrift-hand);
+  font-size: 19px;
+  flex: 0 0 31%;
+  min-width: 0;
+  display: inline-flex; align-items: center; gap: 6px;
 }
-.line-drink { font-size: 19px; flex: 0 0 34%; min-width: 0; }
-.line-marks { flex: 1; min-width: 0; color: var(--ink); }
+.line-drink .icon { font-size: 17px; }
+.line-marks { flex: 1; min-width: 0; color: var(--tinte); }
 .line-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
 .ink-btn {
   width: 38px; height: 38px; border-radius: 50%;
-  border: 2px solid var(--ink); background: transparent;
-  color: var(--ink); font-size: 20px; font-weight: 700;
-  font-family: inherit; cursor: pointer;
+  border: 2px solid var(--tinte); background: transparent;
+  color: var(--tinte); font-size: 16px;
   display: flex; align-items: center; justify-content: center;
+  padding: 0; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.ink-btn:active { transform: scale(0.9); background: rgba(44,62,87,0.12); }
-.ink-btn.plus { background: var(--ink); color: var(--paper); }
+.ink-btn:active { transform: scale(0.9); background: rgba(53, 29, 8, 0.1); }
+.ink-btn.plus { background: var(--tinte); color: var(--blatt); }
 .ink-btn:disabled { opacity: 0.25; cursor: not-allowed; }
 
-.paper-total {
-  display: flex; justify-content: space-between; align-items: baseline;
-  border-top: 2px solid var(--ink);
-  margin-top: 8px; padding-top: 8px;
-  font-size: 19px;
+.paper-empty {
+  font-family: var(--schrift-hand);
+  font-size: 18px; color: var(--tinte-blass);
+  padding: 8px 0;
 }
-.total-num { font-size: 27px; font-weight: 700; }
-.paper-empty { color: var(--ink-soft); font-size: 18px; padding: 8px 0; }
 
 .others-label {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 12px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 1px; color: var(--text-muted);
+  font-family: var(--schrift-stempel);
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.14em;
+  color: var(--tinte-blass);
   margin: 26px 0 2px;
+  display: flex; align-items: center; gap: 9px;
 }
+.others-label::after { content: ''; flex: 1; height: 1px; background: var(--linie); }
+
+.settle-btn {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--schrift-hand); font-size: 16px;
+  color: var(--rot); text-decoration: underline;
+  padding: 4px 2px; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wer.link { color: var(--tinte); text-decoration: none; }
+
+/* Wenn ein Strich nicht gespeichert werden konnte */
+.strich-fehler {
+  font-family: var(--schrift-hand);
+  font-size: 17px; color: var(--rot);
+  text-align: center; padding: 8px 0;
+}
+
 
 .hint-box {
   margin-top: 24px; padding: 14px;
@@ -471,10 +483,9 @@ onMounted(async () => {
   .drink-tabs button { font-size: 12px; padding: 10px 4px; }
   .restock-row { flex-wrap: wrap; }
 
-  .paper { padding: 14px 12px 12px 22px; }
-  .paper-name { font-size: 22px; }
-  .line-drink { flex: 0 0 30%; font-size: 17px; }
-  .ink-btn { width: 34px; height: 34px; font-size: 18px; }
-  .total-num { font-size: 24px; }
+  .line-drink { flex: 0 0 29%; font-size: 17px; }
+  .line-drink .icon { font-size: 15px; }
+  .ink-btn { width: 34px; height: 34px; font-size: 15px; }
 }
-</style>
+
+  </style>

@@ -1,13 +1,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ══════════════════════════════════════════════════════════════════
-   Drei Materialien, klar getrennt:
-   - Kopf- und Fußleiste: Holz, alles darauf wirkt eingebrannt
-   - dazwischen: ein durchgehendes Pergamentblatt mit Wasserzeichen
+   Eine Pinnwand aus Sperrholz:
+   - der Grund ist die Holzwand, mit dem Wal als Brandzeichen darin
+   - darauf liegen Zettel (Strichliste, Einkauf, Notizen) und Polaroids
+   - Kopf- und Fußleiste sind aufgeschraubte Latten, Beschriftung
+     eingebrannt: dunkle Brandfarbe plus heller Grat an der Unterkante
    - Handschrift für alles, was von Hand wäre: Orte, Namen, Striche
 
    Bewusst nur ein heller Look, keine Dunkelvariante.
    Gebaut fürs Handy -- am Rechner wird die App praktisch nie benutzt.
+   Kontraste sind gegen WCGA AA gerechnet, nicht geschätzt.
    ══════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -22,11 +25,31 @@
   --gebrannt:    #2a1607;   /* 7,5:1 auf dem Holz */
   /* aufgeworfene Holzfaser am Rand eines Brandzeichens */
   --kerbe:       rgba(255, 246, 228, 0.5);
+
+  /* Maserung läuft LÄNGS mit ungleichmäßigem Wuchs: ungleiche Abstände,
+     breitere Jahresringe, zwei weiche Lichtzonen. Ein Brett wird in
+     Faserrichtung verbaut -- quer gestreift wirkte wie ein Lattenrost. */
   --holz:
-    repeating-linear-gradient(88deg,   rgba(74,44,16,.09) 0 2px, transparent 2px 7px),
-    repeating-linear-gradient(91deg,   rgba(74,44,16,.06) 0 1px, transparent 1px 14px),
-    repeating-linear-gradient(89.4deg, rgba(255,250,235,.10) 0 3px, transparent 3px 22px),
-    linear-gradient(175deg, var(--holz-hell) 0%, var(--holz-mittel) 45%, var(--holz-tief) 100%);
+    repeating-linear-gradient(179deg,
+      rgba(74,44,16,.13) 0 1.5px, transparent 1.5px 6px,
+      rgba(74,44,16,.07) 6px 7px, transparent 7px 15px,
+      rgba(74,44,16,.11) 15px 17px, transparent 17px 23px),
+    repeating-linear-gradient(180.7deg,
+      rgba(255,250,235,.13) 0 2px, transparent 2px 11px,
+      rgba(255,250,235,.07) 11px 13px, transparent 13px 31px),
+    radial-gradient(140% 60% at 22% 50%, rgba(150,104,52,.16), transparent 70%),
+    radial-gradient(120% 55% at 78% 50%, rgba(255,244,220,.14), transparent 70%),
+    linear-gradient(92deg, var(--holz-hell) 0%, var(--holz-mittel) 48%, var(--holz-tief) 100%);
+
+  /* Die Leisten sind auf die Wand geschraubte Latten: etwas dunkler als
+     die Wand, damit sie sich absetzen statt darin zu verschwinden. */
+  --holz-leiste:
+    repeating-linear-gradient(179deg,
+      rgba(60,34,10,.15) 0 1.5px, transparent 1.5px 6px,
+      rgba(60,34,10,.08) 6px 7px, transparent 7px 15px),
+    repeating-linear-gradient(180.7deg,
+      rgba(255,250,235,.11) 0 2px, transparent 2px 12px),
+    linear-gradient(92deg, #cdaa7d 0%, #c19c6d 48%, #b79062 100%);
 
   /* ── Pergament ── */
   --pergament:   #ece0c2;
@@ -96,7 +119,10 @@ a { color: var(--gebrannt); }
 
 html, body {
   height: 100%;
-  background: var(--pergament);
+  /* Die Wand: darauf liegen Zettel und Polaroids. Vorher war hier
+     Pergament -- Papier auf Papier war matschig, seit fast jeder Inhalt
+     selbst ein Blatt ist. */
+  background: var(--holz-mittel);
   color: var(--tinte);
   font-family: var(--schrift-text);
   font-size: 17px;
@@ -106,7 +132,7 @@ html, body {
 }
 
 body {
-  background-image: var(--pergament-flaeche);
+  background-image: var(--holz);
   background-attachment: fixed;
 }
 
@@ -134,7 +160,7 @@ nav {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   height: var(--nav-h);
-  background: var(--holz);
+  background: var(--holz-leiste);
   display: flex;
   z-index: 100;
   box-shadow: 0 -3px 8px rgba(60, 34, 10, 0.3), inset 0 2px 5px rgba(80, 50, 20, 0.2);
@@ -191,21 +217,24 @@ nav a.gesperrt { opacity: 0.32; pointer-events: none; }
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--gebrannt);
+  text-shadow: 0 1px 0 rgba(255, 250, 235, 0.4);
   font-weight: 400;
 }
 
 /* Abschnittsmarke mit ausklingender Linie statt Kasten */
+/* Liegt auf dem Holz, deshalb gebrannt statt Tinte */
 .section-label {
   font-family: var(--schrift-stempel);
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-size: 11.5px;
-  color: var(--tinte-blass);
-  margin: 18px 0 6px;
+  color: var(--gebrannt);
+  text-shadow: 0 1px 0 rgba(255, 250, 235, 0.35);
+  margin: 18px 0 8px;
   display: flex; align-items: center; gap: 9px;
 }
 .section-label::after {
-  content: ''; flex: 1; height: 1px; background: var(--linie);
+  content: ''; flex: 1; height: 1px; background: rgba(60, 34, 10, 0.28);
 }
 
 /* ══ Blätter ═════════════════════════════════════════════════════
@@ -218,6 +247,78 @@ nav a.gesperrt { opacity: 0.32; pointer-events: none; }
   padding: 15px 16px;
 }
 .card + .card { margin-top: 12px; }
+
+/* ══ Zettel: ein von Hand beschriebenes Blatt ════════════════════
+   Für Strichliste, Einkaufsliste und Notizen -- alles, was im echten
+   Leben handschriftlich auf einem Blatt stehen würde. Roter Rand links
+   wie im Schulheft, Linien zieht jede Zeile selbst (siehe .zettel-zeile):
+   ein Hintergrundmuster im festen Raster kann bei variabler Zeilenhöhe
+   nie treffen. */
+.zettel {
+  position: relative;
+  background: var(--blatt);
+  color: var(--tinte);
+  border-radius: var(--radius-sm);
+  padding: 16px 16px 13px 26px;
+  box-shadow: 0 2px 8px rgba(48, 26, 8, 0.28);
+  overflow: hidden;
+}
+.zettel + .zettel { margin-top: 14px; }
+/* roter Rand links */
+.zettel::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 14px;
+  width: 1.5px;
+  background: var(--rot);
+  opacity: 0.45;
+}
+/* leicht schief angelegt, wie hingelegt statt ausgerichtet */
+.zettel-schief { transform: rotate(-0.35deg); }
+
+.zettel-kopf {
+  display: flex; align-items: baseline; gap: 8px;
+  border-bottom: 2px solid var(--tinte);
+  padding-bottom: 6px; margin-bottom: 4px;
+}
+.zettel-kopf .wer {
+  font-family: var(--schrift-hand);
+  font-size: 24px; flex: 1; min-width: 0; color: var(--tinte);
+}
+.zettel-kopf .dazu {
+  font-family: var(--schrift-hand);
+  font-size: 15px; color: var(--tinte-blass); flex-shrink: 0;
+}
+
+.zettel-zeile {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 46px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--linie);
+}
+.zettel-zeile:last-of-type { border-bottom: none; }
+
+.zettel-summe {
+  display: flex; justify-content: space-between; align-items: baseline;
+  border-top: 2px solid var(--tinte);
+  margin-top: 7px; padding-top: 7px;
+  font-family: var(--schrift-hand); font-size: 19px;
+}
+.zettel-summe b { font-size: 26px; }
+
+/* Von Hand gezeichnetes Kästchen zum Abhaken */
+.kaestchen {
+  width: 26px; height: 26px; flex-shrink: 0;
+  border: 2px solid var(--tinte);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--tinte);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; padding: 0;
+  transform: rotate(-1.5deg);
+  -webkit-tap-highlight-color: transparent;
+}
+.kaestchen .icon { font-size: 16px; stroke-width: 2.6; }
 
 /* Zettel mit Klebestreifen -- für Notizen und Strichlisten */
 .geheftet { position: relative; padding-top: 20px; }
@@ -346,13 +447,15 @@ input[type="checkbox"] { width: auto; min-height: 0; }
    Gibt auf dem Handy deutlich mehr Platz für den Inhalt. */
 .item-row {
   display: flex; align-items: center; gap: 12px;
-  padding: 11px 2px;
+  padding: 11px 12px;
   min-height: 56px;
   cursor: pointer;
-  background: transparent;
+  background: var(--blatt);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--schatten);
   -webkit-tap-highlight-color: transparent;
 }
-.item-row + .item-row { border-top: 1px solid var(--linie); }
+.item-row + .item-row { margin-top: 8px; }
 .item-row:active { background: rgba(53, 29, 8, 0.05); }
 
 .item-thumb {
@@ -396,8 +499,8 @@ input[type="checkbox"] { width: auto; min-height: 0; }
   padding: 3px 8px;
   border: 1px solid var(--linie);
   border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--tinte-blass);
+  background: rgba(251, 247, 238, 0.55);
+  color: var(--tinte);
   white-space: nowrap;
 }
 .tag-rot { color: var(--rot); border-color: rgba(158, 58, 34, 0.55); }
@@ -406,7 +509,9 @@ input[type="checkbox"] { width: auto; min-height: 0; }
 
 /* ══ Zustände ════════════════════════════════════════════════════ */
 .empty {
-  text-align: center; padding: 44px 16px; color: var(--tinte-blass);
+  text-align: center; padding: 44px 16px;
+  color: var(--gebrannt);
+  text-shadow: 0 1px 0 rgba(255, 250, 235, 0.3);
 }
 .empty .icon { font-size: 44px; margin-bottom: 12px; opacity: 0.55; }
 .empty .hinweis { font-family: var(--schrift-hand); font-size: 19px; }
@@ -414,7 +519,9 @@ input[type="checkbox"] { width: auto; min-height: 0; }
 .loading {
   text-align: center; padding: 36px;
   font-family: var(--schrift-hand);
-  font-size: 19px; color: var(--tinte-blass);
+  font-size: 19px;
+  color: var(--gebrannt);
+  text-shadow: 0 1px 0 rgba(255, 250, 235, 0.3);
 }
 
 .divider { height: 1px; background: var(--linie); margin: 14px 0; }

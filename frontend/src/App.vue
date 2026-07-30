@@ -1,7 +1,7 @@
 <template>
   <div v-if="!isAuthPage" class="app-root">
-    <!-- Wasserzeichen liegt im Pergament und scrollt nicht mit -->
-    <div class="wasserzeichen" aria-hidden="true" />
+    <!-- Der Wal ist groß in die Wand gebrannt und scrollt nicht mit -->
+    <div class="wandzeichen" aria-hidden="true" />
 
     <header class="holzleiste">
       <router-link to="/" class="brandzeichen" aria-label="Startseite" />
@@ -36,9 +36,7 @@
     <router-view :key="mode" />
 
     <nav>
-      <router-link to="/search"><Icon name="suche" class="icon" />Suchen</router-link>
       <router-link to="/items"><Icon name="dinge" class="icon" />Dinge</router-link>
-      <router-link to="/locations"><Icon name="orte" class="icon" />Orte</router-link>
       <!-- Im Jahresbetrieb nicht nutzbar, aber sichtbar: sonst wundert man
            sich, wo der Tab hin ist. -->
       <router-link
@@ -46,7 +44,7 @@
         :class="{ gesperrt: mode !== 'lager' }"
         :tabindex="mode === 'lager' ? undefined : -1"
         :title="mode === 'lager' ? 'Getränke' : 'Nur auf dem Lager'"
-      ><Icon name="getraenke" class="icon" />Getränke</router-link>
+      ><Icon name="getraenke" class="icon" />Trinken</router-link>
       <router-link to="/shopping"><Icon name="einkauf" class="icon" />Einkauf</router-link>
       <router-link to="/notes"><Icon name="notizen" class="icon" />Notizen</router-link>
     </nav>
@@ -95,18 +93,21 @@ watch(() => [isAdmin.value, route.path], async () => {
   flex-direction: column;
 }
 
-/* ── Wasserzeichen im Pergament ─────────────────────────────────── */
-.wasserzeichen {
+/* ── Der Wal, groß in die Holzwand gebrannt ─────────────────────── */
+.wandzeichen {
   position: fixed;
   left: 50%;
   top: 48%;
   transform: translate(-50%, -50%) rotate(-4deg);
-  width: min(88vw, 460px);
+  width: min(90vw, 480px);
   aspect-ratio: 1;
-  background-color: #5d4a2c;
+  background-color: #5a3a18;
   -webkit-mask: url('/logo.png') center / contain no-repeat;
   mask: url('/logo.png') center / contain no-repeat;
-  opacity: 0.085;
+  /* Kräftiger als ein Wasserzeichen auf Papier -- Holz verzeiht mehr,
+     und der Grat unten lässt es eingebrannt statt aufgedruckt wirken. */
+  opacity: 0.13;
+  filter: drop-shadow(0 2px 0 rgba(255, 246, 228, 0.22));
   z-index: 0;
   pointer-events: none;
 }
@@ -116,7 +117,7 @@ watch(() => [isAdmin.value, route.path], async () => {
   position: sticky;
   top: 0;
   z-index: 101;
-  background: var(--holz);
+  background: var(--holz-leiste);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -254,7 +255,7 @@ watch(() => [isAdmin.value, route.path], async () => {
   .holzleiste { padding: 6px 10px; padding-top: calc(6px + env(safe-area-inset-top, 0px)); gap: 8px; }
   .brandzeichen { width: 40px; height: 40px; }
   .konto { width: 33px; height: 33px; font-size: 12px; }
-  .wasserzeichen { width: 92vw; }
+  .wandzeichen { width: 94vw; }
   .schieber { gap: 7px; }
   .schieber .nut { width: 50px; height: 24px; }
   .schieber .griff { width: 23px; height: 18px; }

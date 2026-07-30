@@ -47,57 +47,61 @@
     <div v-if="loading" class="loading">Laden …</div>
 
     <template v-else>
-      <!-- Offene Einträge -->
-      <template v-if="offene.length">
-        <div class="section-label">Noch zu besorgen</div>
-        <div
-          v-for="item in offene" :key="item.id"
-          class="item-row"
-          :class="item.urgency"
-        >
-          <button class="kaestchen" @click="toggleDone(item)" aria-label="Als erledigt markieren" />
-          <div class="item-info">
-            <div class="item-name">{{ item.name }}</div>
-            <div class="item-meta">
-              <span class="menge">{{ item.quantity }} {{ item.unit }}</span>
-              <span class="urheber"><Icon name="profil" class="icon" />{{ item.author }}</span>
-            </div>
-            <div v-if="item.notes" class="notiz-zusatz">{{ item.notes }}</div>
-          </div>
-          <span v-if="item.urgency === 'dringend' || item.urgency === 'hoch'"
-                class="tag" :class="{ 'tag-rot': item.urgency === 'dringend' }">
-            {{ urgencyLabel(item.urgency) }}
-          </span>
-          <button class="loeschen" @click="remove(item)" aria-label="Vom Zettel streichen">
-            <Icon name="schliessen" class="icon" />
-          </button>
-        </div>
-      </template>
-
       <div v-if="!offene.length && !erledigte.length" class="empty">
         <Icon name="einkauf" class="icon" />
         <div class="hinweis">Nichts zu besorgen</div>
       </div>
 
-      <!-- Erledigte -->
-      <template v-if="erledigte.length">
-        <div class="section-label">Erledigt</div>
-        <div v-for="item in erledigte" :key="item.id" class="item-row erledigt">
-          <button class="kaestchen an" @click="toggleDone(item)" aria-label="Doch noch offen">
-            <Icon name="haken" class="icon" />
-          </button>
-          <div class="item-info">
-            <div class="item-name">{{ item.name }}</div>
-            <div class="item-meta">
+      <!-- Der Einkaufszettel selbst -->
+      <div v-if="offene.length" class="zettel zettel-schief geheftet">
+        <div class="zettel-kopf">
+          <span class="wer">Noch zu besorgen</span>
+          <span class="dazu">{{ offene.length }}</span>
+        </div>
+
+        <div
+          v-for="item in offene" :key="item.id"
+          class="zettel-zeile"
+          :class="item.urgency"
+        >
+          <button class="kaestchen" @click="toggleDone(item)" aria-label="Abhaken" />
+          <div class="eintrag">
+            <div class="was">{{ item.name }}</div>
+            <div class="dazu-zeile">
               <span class="menge">{{ item.quantity }} {{ item.unit }}</span>
-              <span class="urheber"><Icon name="profil" class="icon" />{{ item.author }}</span>
+              <span class="von">{{ item.author }}</span>
             </div>
+            <div v-if="item.notes" class="zusatz">{{ item.notes }}</div>
           </div>
-          <button class="loeschen" @click="remove(item)" aria-label="Vom Zettel streichen">
+          <span v-if="item.urgency === 'dringend'" class="rotstift">!</span>
+          <button class="streichen" @click="remove(item)" aria-label="Vom Zettel streichen">
             <Icon name="schliessen" class="icon" />
           </button>
         </div>
-      </template>
+      </div>
+
+      <!-- Abgehakte auf eigenem Zettel -->
+      <div v-if="erledigte.length" class="zettel" style="margin-top:18px">
+        <div class="zettel-kopf">
+          <span class="wer">Erledigt</span>
+          <span class="dazu">{{ erledigte.length }}</span>
+        </div>
+        <div v-for="item in erledigte" :key="item.id" class="zettel-zeile abgehakt">
+          <button class="kaestchen" @click="toggleDone(item)" aria-label="Doch noch offen">
+            <Icon name="haken" class="icon" />
+          </button>
+          <div class="eintrag">
+            <div class="was">{{ item.name }}</div>
+            <div class="dazu-zeile">
+              <span class="menge">{{ item.quantity }} {{ item.unit }}</span>
+              <span class="von">{{ item.author }}</span>
+            </div>
+          </div>
+          <button class="streichen" @click="remove(item)" aria-label="Vom Zettel streichen">
+            <Icon name="schliessen" class="icon" />
+          </button>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -186,39 +190,59 @@ onMounted(load)
 }
 .stufe.an.dringend { color: var(--rot); border-color: var(--rot); background: var(--rot-blass); }
 
-/* Dringende Zeilen bekommen einen roten Rotstift-Strich an den Rand */
-.item-row.dringend { box-shadow: inset 3px 0 0 var(--rot); padding-left: 10px; }
-.item-row.hoch { box-shadow: inset 3px 0 0 rgba(158, 58, 34, 0.4); padding-left: 10px; }
-
-.kaestchen {
-  width: 26px; height: 26px; flex-shrink: 0;
-  border: 2px solid var(--tinte);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--tinte);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; font-size: 15px; padding: 0;
-  -webkit-tap-highlight-color: transparent;
-}
-.kaestchen .icon { stroke-width: 2.6; }
-
-.erledigt .item-name { text-decoration: line-through; opacity: 0.45; }
-.erledigt .item-meta { opacity: 0.45; }
-.erledigt .kaestchen { opacity: 0.55; }
-
-.notiz-zusatz {
+/* ── Einträge auf dem Zettel: alles von Hand geschrieben ── */
+.eintrag { flex: 1; min-width: 0; }
+.was {
   font-family: var(--schrift-hand);
-  font-size: 16px;
-  color: var(--tinte-blass);
-  margin-top: 2px;
+  font-size: 20px; line-height: 1.18;
+  color: var(--tinte);
+}
+.dazu-zeile {
+  display: flex; flex-wrap: wrap; gap: 2px 10px;
+  align-items: baseline; margin-top: 1px;
+}
+.menge {
+  font-family: var(--schrift-hand);
+  font-size: 16px; color: var(--tinte-blass);
+  font-variant-numeric: tabular-nums;
+}
+/* Wer es aufgeschrieben hat -- klein danebengekritzelt */
+.von {
+  font-family: var(--schrift-hand);
+  font-size: 15.5px; color: var(--tinte-blass);
+  font-style: italic;
+}
+.zusatz {
+  font-family: var(--schrift-hand);
+  font-size: 16px; color: var(--tinte-blass); margin-top: 1px;
 }
 
-.loeschen {
+/* Dringendes wird mit dem Rotstift markiert */
+.zettel-zeile.dringend .was { color: var(--rot); }
+.rotstift {
+  font-family: var(--schrift-hand);
+  font-size: 26px; font-weight: 700;
+  color: var(--rot); flex-shrink: 0;
+  transform: rotate(6deg);
+  line-height: 1;
+}
+.zettel-zeile.hoch .was { color: #7d3b25; }
+
+/* Abgehaktes wird durchgestrichen, nicht ausgeblendet */
+.abgehakt .was {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  opacity: 0.5;
+}
+.abgehakt .dazu-zeile { opacity: 0.45; }
+.abgehakt .kaestchen { opacity: 0.6; }
+
+.streichen {
   border: none; background: none; cursor: pointer;
   color: var(--tinte-blass);
   font-size: 15px; padding: 6px;
   display: flex; align-items: center; flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
 }
-.loeschen:active { color: var(--rot); }
+.streichen:active { color: var(--rot); }
 </style>

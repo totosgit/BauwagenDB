@@ -13,6 +13,17 @@
       <button :class="{ active: tab === 'gruppen' }" @click="tab = 'gruppen'">Gruppen</button>
     </div>
 
+    <!-- Die Lagerorte sind aus der Navigation hierher gewandert: man legt sie
+         selten an, braucht sie aber täglich als Angabe am Gegenstand. -->
+    <router-link to="/locations" class="card ortverwaltung">
+      <Icon name="orte" class="icon gross" />
+      <span class="ov-text">
+        <span class="ov-titel">Lagerorte verwalten</span>
+        <span class="ov-unter">Bauwagen, Regale, Fächer und Kisten anlegen und umbauen</span>
+      </span>
+      <Icon name="weiter" class="icon" />
+    </router-link>
+
     <div v-if="loading" class="loading">Laden ...</div>
 
     <!-- ===== FREIGABEN ===== -->
@@ -177,6 +188,22 @@ onMounted(load)
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
 }
 .admin-tabs button.active { color: var(--green); border-bottom-color: var(--green); }
+
+/* Einstieg in die Lagerortverwaltung */
+.ortverwaltung {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 16px;
+  text-decoration: none;
+  color: var(--tinte);
+}
+.ortverwaltung .gross { font-size: 30px; color: var(--gebrannt); flex-shrink: 0; }
+.ov-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ov-titel {
+  font-family: var(--schrift-stempel);
+  font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--gebrannt);
+}
+.ov-unter { font-size: 14px; color: var(--tinte-blass); line-height: 1.3; }
 .pill {
   background: var(--rot); color: #fff; border-radius: 999px;
   padding: 1px 8px; font-size: 12px; font-weight: 800;

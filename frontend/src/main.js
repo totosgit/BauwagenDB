@@ -1,7 +1,6 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
-import SearchView from './views/SearchView.vue'
 import LocationsView from './views/LocationsView.vue'
 import ItemsView from './views/ItemsView.vue'
 import ItemFormView from './views/ItemFormView.vue'
@@ -21,13 +20,16 @@ const router = createRouter({
   routes: [
     { path: '/login', component: LoginView, meta: { public: true } },
     { path: '/register', component: RegisterView, meta: { public: true } },
-    { path: '/', redirect: '/search' },
-    { path: '/search', component: SearchView },
+    { path: '/', redirect: '/items' },
+    // Die Suche ist keine eigene Seite mehr, sie steckt als Filter in der
+    // Dinge-Liste. Alte Lesezeichen sollen trotzdem funktionieren.
+    { path: '/search', redirect: '/items' },
     { path: '/items', component: ItemsView },
     { path: '/items/new', component: ItemFormView },
     { path: '/items/:id', component: ItemDetailView },
     { path: '/items/:id/edit', component: ItemFormView },
-    { path: '/locations', component: LocationsView },
+    // Lagerorte anlegen und umbauen gehört zur Verwaltung.
+    { path: '/locations', component: LocationsView, meta: { admin: true } },
     { path: '/drinks', component: DrinksView },
     { path: '/notes', component: NotesView },
     { path: '/shopping', component: ShoppingView },

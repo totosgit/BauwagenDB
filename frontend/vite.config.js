@@ -11,8 +11,9 @@ export default defineConfig({
         name: 'Blauwagen Verwaltung',
         short_name: 'Blauwagen',
         description: 'Lagerverwaltung für den Bauwagen',
-        theme_color: '#2c5f2e',
-        background_color: '#f5f0e8',
+        // Holzfarben passend zur App, vorher stand hier noch das alte Grün
+        theme_color: '#c19c6d',
+        background_color: '#cba97c',
         display: 'standalone',
         orientation: 'any',
         icons: [
