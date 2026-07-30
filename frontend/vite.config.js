@@ -16,9 +16,11 @@ export default defineConfig({
         background_color: '#cba97c',
         display: 'standalone',
         orientation: 'any',
+        // ?v= mit index.html gleich halten und bei Icon-Änderungen hochzählen
         icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }
+          { src: '/icon-192.png?v=2', sizes: '192x192', type: 'image/png' },
+          { src: '/icon-512.png?v=2', sizes: '512x512', type: 'image/png' },
+          { src: '/icon-512.png?v=2', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       },
       workbox: {
