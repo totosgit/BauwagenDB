@@ -161,13 +161,11 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Suchzeile: ein beschriftetes Schild auf dem Holz */
+/* Suchzeile: eine Linie auf dem Pergament, kein Kasten */
 .suchzeile {
   display: flex; align-items: center; gap: 10px;
-  background: var(--blatt);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--schatten);
-  padding: 4px 12px;
+  border-bottom: 1.5px solid var(--linie-stark);
+  padding: 4px 2px;
   margin-bottom: 12px;
 }
 .suchzeile input {
@@ -198,7 +196,6 @@ onMounted(async () => {
   font-family: var(--schrift-hand);
   font-size: 18px; color: var(--rot);
   text-align: center; margin-bottom: 10px;
-  text-shadow: 0 1px 0 rgba(255, 250, 235, 0.4);
 }
 @keyframes pochen { 0%, 100% { opacity: 1 } 50% { opacity: 0.55 } }
 

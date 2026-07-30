@@ -1,7 +1,7 @@
 <template>
   <div v-if="!isAuthPage" class="app-root">
-    <!-- Der Wal ist groß in die Wand gebrannt und scrollt nicht mit -->
-    <div class="wandzeichen" aria-hidden="true" />
+    <!-- Wasserzeichen liegt im Pergament und scrollt nicht mit -->
+    <div class="wasserzeichen" aria-hidden="true" />
 
     <header class="holzleiste">
       <router-link to="/" class="brandzeichen" aria-label="Startseite" />
@@ -93,21 +93,18 @@ watch(() => [isAdmin.value, route.path], async () => {
   flex-direction: column;
 }
 
-/* ── Der Wal, groß in die Holzwand gebrannt ─────────────────────── */
-.wandzeichen {
+/* ── Wasserzeichen im Pergament ─────────────────────────────────── */
+.wasserzeichen {
   position: fixed;
   left: 50%;
   top: 48%;
   transform: translate(-50%, -50%) rotate(-4deg);
-  width: min(90vw, 480px);
+  width: min(88vw, 460px);
   aspect-ratio: 1;
-  background-color: #5a3a18;
+  background-color: #5d4a2c;
   -webkit-mask: url('/logo.png') center / contain no-repeat;
   mask: url('/logo.png') center / contain no-repeat;
-  /* Kräftiger als ein Wasserzeichen auf Papier -- Holz verzeiht mehr,
-     und der Grat unten lässt es eingebrannt statt aufgedruckt wirken. */
-  opacity: 0.13;
-  filter: drop-shadow(0 2px 0 rgba(255, 246, 228, 0.22));
+  opacity: 0.085;
   z-index: 0;
   pointer-events: none;
 }
@@ -117,7 +114,7 @@ watch(() => [isAdmin.value, route.path], async () => {
   position: sticky;
   top: 0;
   z-index: 101;
-  background: var(--holz-leiste);
+  background: var(--holz);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -255,7 +252,7 @@ watch(() => [isAdmin.value, route.path], async () => {
   .holzleiste { padding: 6px 10px; padding-top: calc(6px + env(safe-area-inset-top, 0px)); gap: 8px; }
   .brandzeichen { width: 40px; height: 40px; }
   .konto { width: 33px; height: 33px; font-size: 12px; }
-  .wandzeichen { width: 94vw; }
+  .wasserzeichen { width: 92vw; }
   .schieber { gap: 7px; }
   .schieber .nut { width: 50px; height: 24px; }
   .schieber .griff { width: 23px; height: 18px; }
