@@ -11,35 +11,41 @@
    ══════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Holz ── */
-  --holz-hell:   #8a5c33;
-  --holz-mittel: #7a5230;
-  --holz-tief:   #6a4728;
-  --gebrannt:    #351d08;
+  /* ── Holz: HELLES Sperrholz ──
+     Ein Brandeisen hinterlässt dunkle Spuren auf hellem Holz. Vorher war
+     das Holz zu dunkel: die Beschriftung der Navigation kam damit auf
+     1,69:1, selbst reines Schwarz hätte nur 4,2:1 erreicht. Mit hellem
+     Holz sind es 7,5:1. Gemessen, nicht geschätzt. */
+  --holz-hell:   #d6b58a;
+  --holz-mittel: #cba97c;
+  --holz-tief:   #c09b6c;
+  --gebrannt:    #2a1607;   /* 7,5:1 auf dem Holz */
   /* aufgeworfene Holzfaser am Rand eines Brandzeichens */
-  --kerbe:       rgba(255, 216, 170, 0.26);
+  --kerbe:       rgba(255, 246, 228, 0.5);
   --holz:
-    repeating-linear-gradient(88deg,   rgba(53,29,8,.11) 0 2px, transparent 2px 7px),
-    repeating-linear-gradient(91deg,   rgba(53,29,8,.07) 0 1px, transparent 1px 14px),
-    repeating-linear-gradient(89.4deg, rgba(255,225,190,.05) 0 3px, transparent 3px 22px),
-    linear-gradient(175deg, var(--holz-hell) 0%, var(--holz-mittel) 45%, #825735 100%);
+    repeating-linear-gradient(88deg,   rgba(74,44,16,.09) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(91deg,   rgba(74,44,16,.06) 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(89.4deg, rgba(255,250,235,.10) 0 3px, transparent 3px 22px),
+    linear-gradient(175deg, var(--holz-hell) 0%, var(--holz-mittel) 45%, var(--holz-tief) 100%);
 
   /* ── Pergament ── */
   --pergament:   #ece0c2;
   --pergament-2: #e4d5b2;
   --blatt:       #f4ecd7;
   --blatt-tief:  #e8dcc0;
+  /* Fotopapier: warm und leicht ungleichmäßig, nicht reinweiß */
+  --foto-papier: #f7f1e2;
   --pergament-flaeche:
     radial-gradient(70% 45% at 18% 12%, rgba(255,250,232,.55), transparent 60%),
-    radial-gradient(60% 40% at 88% 30%, rgba(196,172,126,.30), transparent 62%),
-    radial-gradient(80% 50% at 40% 92%, rgba(196,172,126,.26), transparent 65%),
+    radial-gradient(60% 40% at 88% 30%, rgba(196,172,126,.28), transparent 62%),
+    radial-gradient(80% 50% at 40% 92%, rgba(196,172,126,.24), transparent 65%),
     linear-gradient(168deg, var(--pergament) 0%, var(--pergament-2) 55%, var(--pergament) 100%);
 
   /* ── Tinte ── */
-  --tinte:       #3a3226;
-  --tinte-blass: #7a705d;
-  --linie:       rgba(53, 29, 8, 0.16);
-  --linie-stark: rgba(53, 29, 8, 0.32);
+  --tinte:       #3a3226;   /* 9,6:1 auf Pergament */
+  --tinte-blass: #5f5748;   /* 5,4:1 -- vorher #7a705d mit nur 3,7:1 */
+  --linie:       rgba(53, 29, 8, 0.24);
+  --linie-stark: rgba(53, 29, 8, 0.42);
 
   /* ── Signalfarben (sparsam) ── */
   --rot:         #9e3a22;
@@ -75,6 +81,18 @@
   --blue:       var(--gebrannt);
   --blue-pale:  rgba(53, 29, 8, 0.08);
 }
+
+/* Native Bedienelemente ziehen sonst das System-Blau: Textmarkierung,
+   Tipp-Hervorhebung, Auswahlfelder, Zahlenfelder. Das war das Blau, das
+   in der Lagerortverwaltung übrig war -- es stand nirgends im CSS. */
+:root {
+  accent-color: var(--gebrannt);
+  caret-color: var(--gebrannt);
+}
+* { -webkit-tap-highlight-color: transparent; }
+::selection { background: rgba(53, 29, 8, 0.20); color: var(--tinte); }
+a { color: var(--gebrannt); }
+:focus-visible { outline: 2px solid var(--gebrannt); outline-offset: 2px; }
 
 html, body {
   height: 100%;
@@ -119,7 +137,7 @@ nav {
   background: var(--holz);
   display: flex;
   z-index: 100;
-  box-shadow: 0 -3px 10px rgba(40, 22, 6, 0.42), inset 0 2px 5px rgba(40, 22, 6, 0.35);
+  box-shadow: 0 -3px 8px rgba(60, 34, 10, 0.3), inset 0 2px 5px rgba(80, 50, 20, 0.2);
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 nav a {
@@ -129,22 +147,23 @@ nav a {
   gap: 4px;
   text-decoration: none;
   font-family: var(--schrift-stempel);
-  font-size: 9px;
+  /* 9 px waren unlesbar, ebenso die zarten Symbole */
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: rgba(53, 29, 8, 0.6);
-  text-shadow: 0 1px 0 rgba(255, 216, 170, 0.16);
+  letter-spacing: 0.03em;
+  color: #4a3018;                 /* 4,9:1 auf dem hellen Holz */
+  text-shadow: 0 1px 0 rgba(255, 250, 235, 0.3);
   -webkit-tap-highlight-color: transparent;
 }
 nav a .icon {
-  font-size: 22px;
-  filter: drop-shadow(0 1px 0 rgba(255, 216, 170, 0.16));
+  font-size: 25px;
+  filter: drop-shadow(0 1px 0 rgba(255, 250, 235, 0.3));
 }
 nav a.router-link-active {
   color: var(--gebrannt);
   text-shadow: 0 1px 0 var(--kerbe);
-  background: rgba(25, 12, 2, 0.16);
-  box-shadow: inset 0 2px 5px rgba(25, 12, 2, 0.4);
+  background: rgba(120, 80, 35, 0.22);
+  box-shadow: inset 0 2px 5px rgba(90, 58, 25, 0.28), inset 0 -3px 0 var(--gebrannt);
 }
 nav a.router-link-active .icon { filter: drop-shadow(0 1px 0 var(--kerbe)); }
 /* Nicht nutzbar im aktuellen Modus -- sichtbar ausgegraut statt versteckt */
@@ -180,7 +199,7 @@ nav a.gesperrt { opacity: 0.32; pointer-events: none; }
   font-family: var(--schrift-stempel);
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--tinte-blass);
   margin: 18px 0 6px;
   display: flex; align-items: center; gap: 9px;
@@ -233,12 +252,11 @@ nav a.gesperrt { opacity: 0.32; pointer-events: none; }
 
 .btn-primary {
   background: var(--holz);
-  color: #f7e2c0;
-  text-shadow: 0 -1px 0 rgba(25, 12, 2, 0.5);
-  box-shadow: 0 2px 0 rgba(30, 16, 4, 0.5), inset 0 1px 0 rgba(255, 216, 170, 0.22);
+  color: var(--gebrannt);
+  text-shadow: 0 1px 0 rgba(255, 250, 235, 0.5);
+  box-shadow: 0 2px 0 rgba(90, 58, 25, 0.5), inset 0 1px 0 rgba(255, 250, 235, 0.5);
 }
-.btn-primary:active { box-shadow: 0 1px 0 rgba(30, 16, 4, 0.5); }
-.btn-primary .icon { filter: drop-shadow(0 -1px 0 rgba(25, 12, 2, 0.4)); }
+.btn-primary:active { box-shadow: 0 1px 0 rgba(90, 58, 25, 0.5); }
 
 .btn-secondary {
   background: transparent;
@@ -277,7 +295,7 @@ nav a.gesperrt { opacity: 0.32; pointer-events: none; }
 label {
   display: block;
   font-family: var(--schrift-stempel);
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -355,7 +373,7 @@ input[type="checkbox"] { width: auto; min-height: 0; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .item-meta {
-  font-size: 13.5px; color: var(--tinte-blass); margin-top: 2px;
+  font-size: 14.5px; color: var(--tinte-blass); margin-top: 2px;
   display: flex; flex-wrap: wrap; gap: 2px 9px; align-items: baseline;
 }
 /* Ortsangabe in Handschrift -- das sucht man im Lager */
@@ -372,10 +390,10 @@ input[type="checkbox"] { width: auto; min-height: 0; }
 .tag, .type-badge {
   display: inline-block;
   font-family: var(--schrift-stempel);
-  font-size: 9.5px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  padding: 3px 7px;
+  padding: 3px 8px;
   border: 1px solid var(--linie);
   border-radius: var(--radius-sm);
   background: transparent;
@@ -409,9 +427,9 @@ input[type="checkbox"] { width: auto; min-height: 0; }
   width: 60px; height: 60px;
   border-radius: 50%;
   background: var(--holz);
-  color: #f7e2c0;
+  color: var(--gebrannt);
   border: none;
-  box-shadow: 0 4px 14px rgba(30, 16, 4, 0.45), inset 0 1px 0 rgba(255, 216, 170, 0.25);
+  box-shadow: 0 4px 14px rgba(60, 34, 10, 0.35), inset 0 1px 0 rgba(255, 250, 235, 0.5);
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   font-size: 26px;
@@ -420,7 +438,7 @@ input[type="checkbox"] { width: auto; min-height: 0; }
   transition: transform 0.1s;
 }
 .fab:active { transform: scale(0.93); }
-.fab .icon { filter: drop-shadow(0 -1px 0 rgba(25, 12, 2, 0.4)); }
+.fab .icon { filter: drop-shadow(0 1px 0 rgba(255, 250, 235, 0.4)); }
 
 /* Ziehen und Ablegen */
 .drag-ghost { opacity: 0.3; }
@@ -450,7 +468,7 @@ input[type="checkbox"] { width: auto; min-height: 0; }
   .item-meta { font-size: 12.5px; }
   .ort, .urheber { font-size: 15px; }
 
-  nav a { font-size: 8px; gap: 3px; }
-  nav a .icon { font-size: 20px; }
+  nav a { font-size: 10px; gap: 3px; }
+  nav a .icon { font-size: 23px; }
   .fab { width: 54px; height: 54px; font-size: 23px; right: 14px; }
 }

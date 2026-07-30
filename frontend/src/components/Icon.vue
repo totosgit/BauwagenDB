@@ -69,7 +69,8 @@ const pfad = computed(() => PFADE[props.name] || '')
   height: 1em;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.7;
+  /* 1,7 war zu zart -- dünne Linien verschwinden bei Sonne als Erstes */
+  stroke-width: 1.95;
   stroke-linecap: round;
   stroke-linejoin: round;
   flex-shrink: 0;

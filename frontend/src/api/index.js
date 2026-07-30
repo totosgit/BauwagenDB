@@ -42,7 +42,8 @@ export const getGroupMembers = (id) => api.get(`/groups/${id}/members`).then(r =
 export const joinGroup = (id) => api.post(`/groups/${id}/join`).then(r => r.data)
 export const leaveGroup = (id) => api.delete(`/groups/${id}/join`).then(r => r.data)
 
-export const searchAll = (q) => api.get('/search/', { params: { q } }).then(r => r.data)
+// Sucht nur Gegenstände -- Lagerorte werden bewusst nicht durchsucht.
+export const searchAll = (q, mode) => api.get('/search/', { params: { q, mode } }).then(r => r.data)
 
 export const getItems = (params = {}) => api.get('/items/', { params }).then(r => r.data)  // params kann { mode, category, location_id } enthalten
 export const getItem = (id) => api.get(`/items/${id}`).then(r => r.data)

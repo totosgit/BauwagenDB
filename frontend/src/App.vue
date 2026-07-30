@@ -7,25 +7,24 @@
       <router-link to="/" class="brandzeichen" aria-label="Startseite" />
       <span class="luecke" />
 
-      <!-- Zweigeteilter Schalter: die aktive Seite ist ins Holz gebrannt -->
-      <div class="schalter" role="group" aria-label="Lagerzustand">
-        <button
-          class="seg"
-          :class="{ an: mode === 'lager' }"
-          :aria-pressed="mode === 'lager'"
-          @click="setMode('lager')"
-        >
-          <Icon name="zelt" class="icon" />Lager
-        </button>
-        <button
-          class="seg"
-          :class="{ an: mode === 'jahr' }"
-          :aria-pressed="mode === 'jahr'"
-          @click="setMode('jahr')"
-        >
-          <Icon name="haus" class="icon" />Jahr
-        </button>
-      </div>
+      <!-- Schieber: die Stellung des Griffs IST der Zustand. Zusätzlich ist
+           das Symbol der aktiven Seite voll deckend, das der anderen blass --
+           Stellung und Betonung sagen dasselbe. -->
+      <button
+        class="schieber"
+        role="switch"
+        :aria-checked="mode === 'jahr'"
+        :aria-label="mode === 'lager' ? 'Auf dem Lager – umschalten auf Jahresbetrieb' : 'Unter dem Jahr – umschalten auf Lagerbetrieb'"
+        @click="setMode(mode === 'lager' ? 'jahr' : 'lager')"
+      >
+        <Icon name="zelt" class="icon ende" :class="{ an: mode === 'lager' }" />
+        <span class="nut">
+          <span class="griff" :class="mode === 'lager' ? 'links' : 'rechts'">
+            <i /><i /><i />
+          </span>
+        </span>
+        <Icon name="haus" class="icon ende" :class="{ an: mode === 'jahr' }" />
+      </button>
 
       <router-link to="/profile" class="konto" :title="user?.display_name || 'Profil'">
         <span v-if="pendingCount" class="konto-punkt">{{ pendingCount }}</span>
@@ -123,7 +122,7 @@ watch(() => [isAdmin.value, route.path], async () => {
   gap: 10px;
   padding: 8px 12px;
   padding-top: calc(8px + env(safe-area-inset-top, 0px));
-  box-shadow: 0 3px 8px rgba(40, 22, 6, 0.4), inset 0 -2px 5px rgba(40, 22, 6, 0.3);
+  box-shadow: 0 3px 8px rgba(60, 34, 10, 0.3), inset 0 -2px 5px rgba(80, 50, 20, 0.2);
 }
 
 /* Das Logo als Brandzeichen: die Silhouette dient als Maske über der
@@ -134,7 +133,7 @@ watch(() => [isAdmin.value, route.path], async () => {
   width: 46px;
   height: 46px;
   flex-shrink: 0;
-  background-color: rgba(40, 21, 5, 0.88);
+  background-color: var(--gebrannt);
   -webkit-mask: url('/logo.png') center / contain no-repeat;
   mask: url('/logo.png') center / contain no-repeat;
   filter: drop-shadow(0 1.5px 0 var(--kerbe));
@@ -144,42 +143,73 @@ watch(() => [isAdmin.value, route.path], async () => {
 
 .holzleiste .luecke { flex: 1; }
 
-/* ── Umschalter: in das Holz gefräste Rille ─────────────────────── */
-.schalter {
-  display: flex;
-  flex-shrink: 0;
-  background: rgba(40, 21, 5, 0.34);
-  border-radius: 4px;
-  padding: 2px;
-  box-shadow: inset 0 2px 4px rgba(25, 12, 2, 0.55);
-}
-.schalter .seg {
+/* ── Schieber: rechteckige Nut im Holz, dunkler Griff mit Riffelung ──
+   Nichts Rundes, und der Griff dunkel: dadurch hebt er sich klar vom
+   hellen Holz ab statt darin zu verschwinden. */
+.schieber {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 7px 11px;
-  min-height: 34px;
+  gap: 9px;
+  flex-shrink: 0;
+  padding: 4px 2px;
   border: none;
   background: transparent;
-  border-radius: 3px;
-  font-family: var(--schrift-stempel);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: rgba(247, 226, 192, 0.5);
-  white-space: nowrap;
+  color: var(--gebrannt);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.schalter .seg .icon { font-size: 15px; }
-.schalter .seg.an {
-  background: linear-gradient(#8d5f36, #7b5230);
-  color: var(--gebrannt);
-  text-shadow: 0 1px 0 var(--kerbe);
-  box-shadow: 0 1px 0 var(--kerbe), 0 1px 3px rgba(25, 12, 2, 0.4);
+.schieber .ende {
+  font-size: 17px;
+  opacity: 0.3;
+  transition: opacity 0.15s;
 }
-.schalter .seg.an .icon { filter: drop-shadow(0 1px 0 var(--kerbe)); }
-.schalter .seg:focus-visible { outline: 2px solid #f7e2c0; outline-offset: 1px; }
+.schieber .ende.an {
+  opacity: 1;
+  filter: drop-shadow(0 1px 0 var(--kerbe));
+}
+
+/* Die Nut: eingefräst, dunkel, mit hellem Grat an der Unterkante */
+.schieber .nut {
+  position: relative;
+  width: 56px;
+  height: 26px;
+  border-radius: 2px;
+  background: rgba(48, 26, 6, 0.42);
+  box-shadow:
+    inset 0 2px 5px rgba(30, 15, 3, 0.7),
+    inset 0 -1px 0 rgba(255, 250, 235, 0.2);
+}
+
+/* Der Griff: dunkles Eisen, mit Riffelung und Fase oben */
+.schieber .griff {
+  position: absolute;
+  top: 3px;
+  width: 26px;
+  height: 20px;
+  border-radius: 1px;
+  background: linear-gradient(#4a3116, #33200c 55%, #241505);
+  box-shadow:
+    0 1px 3px rgba(20, 10, 2, 0.6),
+    inset 0 1px 0 rgba(255, 236, 200, 0.28),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+  transition: left 0.16s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5px;
+}
+/* Griffrillen -- machen klar, dass man daran zieht */
+.schieber .griff i {
+  display: block;
+  width: 1.5px;
+  height: 10px;
+  border-radius: 1px;
+  background: rgba(255, 240, 210, 0.34);
+}
+.schieber .griff.links { left: 3px; }
+.schieber .griff.rechts { left: 27px; }
+
+.schieber:focus-visible { outline: 2px solid var(--gebrannt); outline-offset: 2px; }
 
 /* ── Profil-Knopf: eingelassene Scheibe ─────────────────────────── */
 .konto {
@@ -188,15 +218,15 @@ watch(() => [isAdmin.value, route.path], async () => {
   height: 36px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: rgba(40, 21, 5, 0.3);
-  color: #f2dcb6;
+  background: rgba(60, 34, 10, 0.22);
+  color: var(--gebrannt);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--schrift-stempel);
-  font-size: 12.5px;
+  font-size: 13px;
   text-decoration: none;
-  box-shadow: inset 0 2px 4px rgba(25, 12, 2, 0.5);
+  box-shadow: inset 0 2px 4px rgba(60, 34, 10, 0.35);
   -webkit-tap-highlight-color: transparent;
 }
 .konto:active { opacity: 0.8; }
@@ -223,16 +253,12 @@ watch(() => [isAdmin.value, route.path], async () => {
 @media (max-width: 390px) {
   .holzleiste { padding: 6px 10px; padding-top: calc(6px + env(safe-area-inset-top, 0px)); gap: 8px; }
   .brandzeichen { width: 40px; height: 40px; }
-  .schalter .seg { padding: 6px 8px; font-size: 10px; min-height: 32px; }
-  .schalter .seg .icon { font-size: 13px; }
-  .konto { width: 32px; height: 32px; font-size: 11.5px; }
+  .konto { width: 33px; height: 33px; font-size: 12px; }
   .wasserzeichen { width: 92vw; }
-}
-
-/* Sehr schmal: Schalter nur mit Symbolen, Beschriftung weg */
-@media (max-width: 340px) {
-  .schalter .seg { padding: 6px 9px; }
-  .schalter .seg { font-size: 0; gap: 0; }
-  .schalter .seg .icon { font-size: 15px; }
+  .schieber { gap: 7px; }
+  .schieber .nut { width: 50px; height: 24px; }
+  .schieber .griff { width: 23px; height: 18px; }
+  .schieber .griff.rechts { left: 24px; }
+  .schieber .ende { font-size: 16px; }
 }
 </style>

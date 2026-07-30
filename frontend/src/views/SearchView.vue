@@ -1,16 +1,12 @@
 <template>
   <div class="page">
-    <div class="page-header">
-      <h1 class="page-title">Suche</h1>
-    </div>
-
     <div class="suchzeile">
       <Icon name="suche" class="icon lupe" />
       <input
         ref="inputEl"
         v-model="query"
         type="search"
-        placeholder="Werkzeug, Material, Ort …"
+        placeholder="Werkzeug, Material …"
         autocomplete="off"
         autocorrect="off"
         @input="onInput"
@@ -30,53 +26,20 @@
     <div v-if="loading" class="loading">Suche läuft …</div>
 
     <template v-else-if="searched">
-      <!-- Items -->
-      <div v-if="results.items.length">
-        <div class="section-label">Gegenstände ({{ results.items.length }})</div>
-        <div
-          v-for="item in results.items"
-          :key="'i' + item.id"
-          class="item-row"
-          @click="$router.push('/items/' + item.id)"
-        >
-          <div class="item-thumb">
-            <img v-if="item.image_path" :src="'/images/' + item.image_path" :alt="item.name" />
-            <Icon v-else :name="categoryIcon(item.category)" class="icon" />
-          </div>
-          <div class="item-info">
-            <div class="item-name">{{ item.name }}</div>
-            <div class="item-meta">
-              <span v-if="item.quantity" class="menge">{{ item.quantity }} {{ item.unit }}</span>
-              <span v-if="activeBreadcrumb(item)" class="ort">{{ activeBreadcrumb(item) }}</span>
-              <span v-if="item.aufgebaut && mode !== 'jahr'" class="tag">Aufgebaut</span>
-            </div>
-          </div>
-          <span v-if="item.category" class="tag">{{ item.category }}</span>
+      <template v-if="items.length">
+        <div class="section-label">{{ items.length }} {{ items.length === 1 ? 'Treffer' : 'Treffer' }}</div>
+        <div class="polaroids">
+          <Polaroid
+            v-for="item in items"
+            :key="item.id"
+            :item="item"
+            :breadcrumb="activeBreadcrumb(item)"
+            @oeffnen="$router.push('/items/' + item.id)"
+          />
         </div>
-      </div>
+      </template>
 
-      <!-- Locations -->
-      <div v-if="results.locations.length">
-        <div class="section-label">Lagerorte ({{ results.locations.length }})</div>
-        <div
-          v-for="loc in results.locations"
-          :key="'l' + loc.id"
-          class="item-row"
-          @click="$router.push('/locations')"
-        >
-          <div class="item-thumb"><Icon name="orte" class="icon" /></div>
-          <div class="item-info">
-            <div class="item-name">{{ loc.name }}</div>
-            <div class="item-meta">
-              <span class="type-badge">{{ loc.type }}</span>
-              <span v-if="loc.breadcrumb" class="ort">{{ loc.breadcrumb }}</span>
-            </div>
-          </div>
-          <span class="tag">{{ loc.item_count }} Dinge</span>
-        </div>
-      </div>
-
-      <div v-if="!results.items.length && !results.locations.length" class="empty">
+      <div v-else class="empty">
         <Icon name="suche" class="icon" />
         <div class="hinweis">Nichts gefunden für „{{ query }}"</div>
       </div>
@@ -94,12 +57,12 @@ import { ref } from 'vue'
 import { searchAll } from '../api/index.js'
 import { useMode } from '../composables/useMode.js'
 import Icon from '../components/Icon.vue'
-import { categoryIcon } from '../utils/kategorien.js'
+import Polaroid from '../components/Polaroid.vue'
 
 const { mode } = useMode()
 
 const query = ref('')
-const results = ref({ items: [], locations: [] })
+const items = ref([])
 const loading = ref(false)
 const searched = ref(false)
 const listening = ref(false)
@@ -120,7 +83,8 @@ async function doSearch() {
   if (!query.value.trim()) return
   loading.value = true
   try {
-    results.value = await searchAll(query.value)
+    const daten = await searchAll(query.value, mode.value)
+    items.value = daten.items || []
     searched.value = true
   } finally {
     loading.value = false
@@ -150,8 +114,7 @@ function toggleVoice() {
 }
 
 function activeBreadcrumb(item) {
-  if (mode.value === 'jahr') return item.breadcrumb_jahr
-  return item.breadcrumb_lager
+  return mode.value === 'jahr' ? item.breadcrumb_jahr : item.breadcrumb_lager
 }
 </script>
 
@@ -167,7 +130,7 @@ function activeBreadcrumb(item) {
   border: none; padding: 10px 0; min-height: 46px;
 }
 .suchzeile input:focus { outline: none; }
-.lupe { font-size: 20px; color: var(--tinte-blass); flex-shrink: 0; }
+.lupe { font-size: 21px; color: var(--tinte-blass); flex-shrink: 0; }
 
 .sprechen {
   width: 42px; height: 42px; flex-shrink: 0;
@@ -178,10 +141,9 @@ function activeBreadcrumb(item) {
   font-size: 19px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
 }
 .sprechen.hoert {
-  background: var(--holz); color: #f7e2c0;
+  background: var(--holz); color: var(--gebrannt);
   border-color: transparent;
   animation: pochen 1s infinite;
 }
@@ -191,4 +153,13 @@ function activeBreadcrumb(item) {
   text-align: center; margin-top: 10px;
 }
 @keyframes pochen { 0%, 100% { opacity: 1 } 50% { opacity: 0.55 } }
+
+/* Pinnwand: zwei Spalten, mit Luft für die Klebestreifen */
+.polaroids {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px 15px;
+  margin-top: 10px;
+  padding-top: 6px;
+}
 </style>

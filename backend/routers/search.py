@@ -1,14 +1,21 @@
+"""Suche über Gegenstände.
+
+Lagerorte werden bewusst nicht durchsucht -- man sucht Dinge, nicht Orte.
+Durch die Struktur blättert man in der Orte-Ansicht.
+"""
 from fastapi import APIRouter, Depends
+from rapidfuzz import fuzz
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from rapidfuzz import fuzz
+
+from auth import current_user
 from database import get_db
-from models import Item, Location
-from utils import get_breadcrumb, build_location_response
+from models import Item, Location, User
 
 router = APIRouter(prefix="/search", tags=["search"])
 
 FUZZY_THRESHOLD = 75
+MAX_TREFFER = 50
 
 
 def _fuzzy_match(query: str, *fields: str) -> bool:
@@ -26,16 +33,55 @@ def _fuzzy_match(query: str, *fields: str) -> bool:
     return False
 
 
+def _breadcrumbs(db: Session) -> dict[int, str]:
+    """Alle Pfade in einer Abfrage statt einer Kette pro Gegenstand.
+
+    Vorher lief für jeden Treffer eine eigene Abfragekette bis zur Wurzel --
+    bei 50 Treffern schnell hunderte Abfragen auf dem Raspberry Pi.
+    """
+    orte = {
+        o.id: (o.name, o.parent_id)
+        for o in db.query(Location.id, Location.name, Location.parent_id).all()
+    }
+
+    fertig: dict[int, str] = {}
+
+    def pfad(oid: int | None) -> str:
+        if oid is None or oid not in orte:
+            return ""
+        if oid in fertig:
+            return fertig[oid]
+        name, parent = orte[oid]
+        # Zyklenschutz: erst belegen, dann auflösen
+        fertig[oid] = name
+        oben = pfad(parent)
+        fertig[oid] = f"{oben} › {name}" if oben else name
+        return fertig[oid]
+
+    for oid in orte:
+        pfad(oid)
+    return fertig
+
+
 @router.get("/")
-def search(q: str, db: Session = Depends(get_db)):
-    if not q or len(q.strip()) < 1:
-        return {"items": [], "locations": []}
+def search(
+    q: str,
+    mode: str | None = None,
+    db: Session = Depends(get_db),
+    _: User = Depends(current_user),
+):
+    if not q or not q.strip():
+        return {"items": []}
 
     query = q.strip()
     term = f"%{query}%"
 
-    # Exakte Substring-Treffer (schnell, via DB)
-    exact_items = db.query(Item).filter(
+    basis = db.query(Item)
+    if mode:
+        basis = basis.filter(Item.storage_mode.in_([mode, "both"]))
+
+    # Exakte Substring-Treffer zuerst (schnell, über die Datenbank)
+    exact = basis.filter(
         or_(
             Item.name.ilike(term),
             Item.description.ilike(term),
@@ -44,35 +90,20 @@ def search(q: str, db: Session = Depends(get_db)):
             Item.notes.ilike(term),
         )
     ).all()
-    exact_item_ids = {i.id for i in exact_items}
+    exact_ids = {i.id for i in exact}
 
-    # Fuzzy-Matching über alle restlichen Items
-    all_items = db.query(Item).filter(Item.id.notin_(exact_item_ids)).all()
-    fuzzy_items = [
-        i for i in all_items
-        if _fuzzy_match(query, i.name, i.description, i.category, i.tags, i.notes)
+    # Danach unscharf über den Rest (Tippfehler, Wortformen)
+    rest = basis.filter(Item.id.notin_(exact_ids)).all() if exact_ids else basis.all()
+    fuzzy = [
+        i for i in rest
+        if i.id not in exact_ids
+        and _fuzzy_match(query, i.name, i.description, i.category, i.tags, i.notes)
     ]
 
-    items = sorted(exact_items, key=lambda i: i.name) + sorted(fuzzy_items, key=lambda i: i.name)
+    treffer = sorted(exact, key=lambda i: i.name) + sorted(fuzzy, key=lambda i: i.name)
+    treffer = treffer[:MAX_TREFFER]
 
-    # Exakte Substring-Treffer Locations
-    exact_locations = db.query(Location).filter(
-        or_(
-            Location.name.ilike(term),
-            Location.description.ilike(term),
-        )
-    ).all()
-    exact_location_ids = {l.id for l in exact_locations}
-
-    # Fuzzy-Matching über alle restlichen Locations
-    all_locations = db.query(Location).filter(Location.id.notin_(exact_location_ids)).all()
-    fuzzy_locations = [
-        l for l in all_locations
-        if _fuzzy_match(query, l.name, l.description)
-    ]
-
-    locations = sorted(exact_locations, key=lambda l: l.name) + sorted(fuzzy_locations, key=lambda l: l.name)
-
+    pfade = _breadcrumbs(db)
     return {
         "items": [
             {
@@ -82,14 +113,14 @@ def search(q: str, db: Session = Depends(get_db)):
                 "quantity": i.quantity,
                 "unit": i.unit,
                 "image_path": i.image_path,
-                "breadcrumb_lager": get_breadcrumb(db, i.location_lager_id),
-                "breadcrumb_jahr": get_breadcrumb(db, i.location_jahr_id),
+                "storage_mode": i.storage_mode,
+                "breadcrumb_lager": pfade.get(i.location_lager_id, ""),
+                "breadcrumb_jahr": pfade.get(i.location_jahr_id, ""),
                 "location_lager_id": i.location_lager_id,
                 "location_jahr_id": i.location_jahr_id,
                 "tags": i.tags,
                 "aufgebaut": i.aufgebaut,
             }
-            for i in items[:50]
-        ],
-        "locations": [build_location_response(l, db) for l in locations[:20]],
+            for i in treffer
+        ]
     }

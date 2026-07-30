@@ -30,27 +30,14 @@
           <Icon name="plus" class="icon" />Ersten Gegenstand aufnehmen
         </button>
       </div>
-      <div v-else>
-        <div
+      <div v-else class="polaroids">
+        <Polaroid
           v-for="item in items"
           :key="item.id"
-          class="item-row"
-          @click="$router.push('/items/' + item.id)"
-        >
-          <div class="item-thumb">
-            <img v-if="item.image_path" :src="'/images/' + item.image_path" :alt="item.name" />
-            <Icon v-else :name="categoryIcon(item.category)" class="icon" />
-          </div>
-          <div class="item-info">
-            <div class="item-name">{{ item.name }}</div>
-            <div class="item-meta">
-              <span class="menge">{{ item.quantity }} {{ item.unit }}</span>
-              <span v-if="activeBreadcrumb(item)" class="ort">{{ activeBreadcrumb(item) }}</span>
-              <span v-if="item.aufgebaut && mode !== 'jahr'" class="tag">Aufgebaut</span>
-            </div>
-          </div>
-          <span v-if="item.category" class="tag">{{ item.category }}</span>
-        </div>
+          :item="item"
+          :breadcrumb="activeBreadcrumb(item)"
+          @oeffnen="$router.push('/items/' + item.id)"
+        />
       </div>
     </template>
 
@@ -65,7 +52,7 @@ import { ref, onMounted } from 'vue'
 import { getItems, getCategories } from '../api/index.js'
 import { useMode } from '../composables/useMode.js'
 import Icon from '../components/Icon.vue'
-import { categoryIcon } from '../utils/kategorien.js'
+import Polaroid from '../components/Polaroid.vue'
 
 const { mode } = useMode()
 const items = ref([])
@@ -97,4 +84,13 @@ onMounted(async () => {
 
 <style scoped>
 .filter-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 6px; }
+
+/* Pinnwand: zwei Spalten, mit Luft für die Klebestreifen */
+.polaroids {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px 15px;
+  margin-top: 12px;
+  padding-top: 6px;
+}
 </style>

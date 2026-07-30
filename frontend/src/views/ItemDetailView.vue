@@ -12,19 +12,23 @@
     <div v-if="loading" class="loading">Laden …</div>
 
     <template v-else-if="item">
-      <!-- Foto -->
-      <div class="bildflaeche card" @click="triggerImageUpload">
-        <img v-if="item.image_path" :src="'/images/' + item.image_path" :alt="item.name" class="item-image" />
-        <div v-else class="bild-leer">
-          <Icon name="kamera" class="icon gross" />
-          <div class="hinweis">Foto aufnehmen</div>
-        </div>
+      <!-- Das Polaroid trägt Name und Ort schon selbst -->
+      <div class="polaroid-halter">
+        <Polaroid
+          class="gross"
+          :item="item"
+          :breadcrumb="activeBreadcrumb"
+          :ort-tiefe="4"
+        />
+        <button class="foto-knopf" @click="triggerImageUpload">
+          <Icon name="kamera" class="icon" />
+          {{ item.image_path ? 'Foto ersetzen' : 'Foto aufnehmen' }}
+        </button>
         <input ref="fileInput" type="file" accept="image/*" capture="environment" style="display:none" @change="onFileChange" />
       </div>
 
-      <div class="card" style="margin-top: 12px;">
-        <div class="detail-name">{{ item.name }}</div>
-        <div v-if="item.category" style="margin-top: 6px;"><span class="tag">{{ item.category }}</span></div>
+      <div class="card" style="margin-top: 14px;">
+        <div v-if="item.category"><span class="tag">{{ item.category }}</span></div>
 
         <div v-if="item.aufgebaut && mode !== 'jahr'" class="aufgebaut">
           <Icon name="dinge" class="icon" />
@@ -104,11 +108,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getItem, deleteItem, uploadImage, createShoppingItem } from '../api/index.js'
 import { useMode } from '../composables/useMode.js'
 import Icon from '../components/Icon.vue'
+import Polaroid from '../components/Polaroid.vue'
 
 const { mode } = useMode()
 
@@ -126,6 +131,10 @@ const urgencies = [
   { value: 'hoch', label: 'Hoch' },
   { value: 'dringend', label: 'Dringend!' },
 ]
+
+const activeBreadcrumb = computed(() =>
+  mode.value === 'jahr' ? item.value?.breadcrumb_jahr : item.value?.breadcrumb_lager
+)
 
 function openShoppingForm() {
   shopForm.value = { quantity: item.value?.quantity ?? 1, unit: item.value?.unit ?? 'Stück', urgency: 'mittel' }
@@ -168,28 +177,27 @@ onMounted(load)
 </script>
 
 <style scoped>
-.bildflaeche {
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden; padding: 8px;
+/* Das große Polaroid sitzt zentriert, darunter der Foto-Knopf */
+.polaroid-halter {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px;
+  padding-top: 8px;
 }
-.item-image {
-  max-width: 100%; max-height: 240px; width: auto;
-  object-fit: contain; border-radius: var(--radius-sm);
-}
-.bild-leer {
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  color: var(--tinte-blass); padding: 34px 20px;
-}
-.bild-leer .gross { font-size: 40px; opacity: 0.6; }
-.bild-leer .hinweis { font-family: var(--schrift-hand); font-size: 19px; }
+.polaroid-halter > :first-child { width: 100%; max-width: 320px; }
 
-.detail-name {
+.foto-knopf {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; min-height: 44px;
+  border: 1.5px solid var(--linie-stark);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--tinte);
   font-family: var(--schrift-stempel);
-  font-size: 22px; letter-spacing: 0.02em;
-  color: var(--gebrannt);
-  line-height: 1.2;
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.1em;
+  cursor: pointer;
 }
+.foto-knopf .icon { font-size: 16px; }
+
 .detail-row { display: flex; gap: 12px; margin-top: 10px; align-items: baseline; }
 .detail-label {
   font-family: var(--schrift-stempel);
