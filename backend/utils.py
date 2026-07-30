@@ -3,6 +3,35 @@ from sqlalchemy.orm import Session
 from models import Location, Item
 
 
+def alle_breadcrumbs(db: Session) -> dict[int, str]:
+    """Alle Lagerort-Pfade in einer Abfrage.
+
+    Die Einzelvariante get_breadcrumb() laeuft pro Aufruf eine Kette bis zur
+    Wurzel. Bei einer Liste mit vielen Gegenstaenden waren das schnell
+    hunderte Abfragen -- messbar der langsamste Endpunkt der Anwendung.
+    """
+    orte = {
+        o.id: (o.name, o.parent_id)
+        for o in db.query(Location.id, Location.name, Location.parent_id).all()
+    }
+    fertig: dict[int, str] = {}
+
+    def pfad(oid: int | None) -> str:
+        if oid is None or oid not in orte:
+            return ""
+        if oid in fertig:
+            return fertig[oid]
+        name, parent = orte[oid]
+        fertig[oid] = name          # Zyklenschutz: erst belegen, dann aufloesen
+        oben = pfad(parent)
+        fertig[oid] = f"{oben} \u203a {name}" if oben else name
+        return fertig[oid]
+
+    for oid in orte:
+        pfad(oid)
+    return fertig
+
+
 def get_breadcrumb(db: Session, location_id: int | None) -> str:
     if location_id is None:
         return ""

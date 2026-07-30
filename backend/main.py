@@ -3,6 +3,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -87,6 +88,24 @@ def _is_public(path: str) -> bool:
     return True
 
 
+def _sitzung_pruefen(token: str | None):
+    """Laeuft in einem Arbeitsthread, nicht im Event-Loop.
+
+    SQLite-Zugriffe sind blockierend. Direkt im Loop ausgefuehrt haben sie
+    unter Last zu einer Verklemmung gefuehrt: ab etwa 20 gleichzeitigen
+    Anfragen war der Verbindungspool leer, die Middleware wartete im Loop
+    auf eine freie Verbindung -- und die konnte nicht frei werden, weil
+    dafuer der Loop weiterlaufen muesste. Ergebnis: die Anfragen blieben
+    haengen. Statische Pfade waren nie betroffen, weil sie hier nicht
+    hereinlaufen.
+    """
+    db = next(get_db())
+    try:
+        return resolve_session(db, token)
+    finally:
+        db.close()
+
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     request.state.user = None
@@ -97,11 +116,9 @@ async def auth_middleware(request: Request, call_next):
     needs_user = path.startswith("/api/") or path.startswith("/images/")
 
     if needs_user:
-        db = next(get_db())
-        try:
-            request.state.user = resolve_session(db, request.cookies.get(COOKIE_NAME))
-        finally:
-            db.close()
+        request.state.user = await run_in_threadpool(
+            _sitzung_pruefen, request.cookies.get(COOKIE_NAME)
+        )
 
         if not _is_public(path) and request.state.user is None:
             return JSONResponse({"detail": "Nicht angemeldet"}, status_code=401)

@@ -18,8 +18,21 @@ DATABASE_URL = f"sqlite:///{DB_FILE}"
 # dank WAL vertragen sich die beiden Verbindungen problemlos.
 ASYNC_DATABASE_URL = f"sqlite+aiosqlite:///{DB_FILE}"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-async_engine = create_async_engine(ASYNC_DATABASE_URL, connect_args={"check_same_thread": False})
+# Der Pool muss zu den Arbeitsthreads passen, in denen die synchronen
+# Endpunkte laufen. Mit den Standardwerten (5 + 10) war unter Last Schluss:
+# Middleware und Handler haben sich gegenseitig die Verbindungen weggenommen.
+# Dank WAL koennen beliebig viele Leser gleichzeitig arbeiten.
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False, "timeout": 15},
+    pool_size=20,
+    max_overflow=30,
+    pool_recycle=1800,
+)
+async_engine = create_async_engine(
+    ASYNC_DATABASE_URL,
+    connect_args={"check_same_thread": False, "timeout": 15},
+)
 
 # Enable WAL mode for better concurrent access
 def set_sqlite_pragma(dbapi_connection, connection_record):

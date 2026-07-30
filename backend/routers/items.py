@@ -5,14 +5,21 @@ from sqlalchemy.orm import Session
 from database import get_db, IMAGES_DIR
 from models import Item
 from schemas import ItemCreate, ItemUpdate, ItemResponse
-from utils import get_breadcrumb
+from utils import alle_breadcrumbs, get_breadcrumb
 
 router = APIRouter(prefix="/items", tags=["items"])
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
-def item_to_response(item: Item, db: Session) -> dict:
+def item_to_response(item: Item, db: Session, pfade: dict[int, str] | None = None) -> dict:
+    """pfade = vorab geladene Lagerort-Pfade. Ohne sie wird pro Gegenstand
+    einzeln aufgeloest -- fuer Listen immer die Sammelvariante nutzen."""
+    def pfad(oid):
+        if pfade is not None:
+            return pfade.get(oid, "")
+        return get_breadcrumb(db, oid)
+
     return {
         "id": item.id,
         "name": item.name,
@@ -30,8 +37,8 @@ def item_to_response(item: Item, db: Session) -> dict:
         "notes": item.notes,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
-        "breadcrumb_lager": get_breadcrumb(db, item.location_lager_id),
-        "breadcrumb_jahr": get_breadcrumb(db, item.location_jahr_id),
+        "breadcrumb_lager": pfad(item.location_lager_id),
+        "breadcrumb_jahr": pfad(item.location_jahr_id),
     }
 
 
@@ -47,7 +54,8 @@ def list_items(
     if mode:
         q = q.filter(Item.storage_mode.in_([mode, "both"]))
     items = q.order_by(Item.name).all()
-    return [item_to_response(i, db) for i in items]
+    pfade = alle_breadcrumbs(db)
+    return [item_to_response(i, db, pfade) for i in items]
 
 
 @router.get("/categories", response_model=list[str])

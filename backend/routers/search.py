@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from auth import current_user
 from database import get_db
-from models import Item, Location, User
+from models import Item, User
+from utils import alle_breadcrumbs
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -31,36 +32,6 @@ def _fuzzy_match(query: str, *fields: str) -> bool:
         if fuzz.partial_ratio(q, field.lower()) >= FUZZY_THRESHOLD:
             return True
     return False
-
-
-def _breadcrumbs(db: Session) -> dict[int, str]:
-    """Alle Pfade in einer Abfrage statt einer Kette pro Gegenstand.
-
-    Vorher lief für jeden Treffer eine eigene Abfragekette bis zur Wurzel --
-    bei 50 Treffern schnell hunderte Abfragen auf dem Raspberry Pi.
-    """
-    orte = {
-        o.id: (o.name, o.parent_id)
-        for o in db.query(Location.id, Location.name, Location.parent_id).all()
-    }
-
-    fertig: dict[int, str] = {}
-
-    def pfad(oid: int | None) -> str:
-        if oid is None or oid not in orte:
-            return ""
-        if oid in fertig:
-            return fertig[oid]
-        name, parent = orte[oid]
-        # Zyklenschutz: erst belegen, dann auflösen
-        fertig[oid] = name
-        oben = pfad(parent)
-        fertig[oid] = f"{oben} › {name}" if oben else name
-        return fertig[oid]
-
-    for oid in orte:
-        pfad(oid)
-    return fertig
 
 
 @router.get("/")
@@ -103,7 +74,7 @@ def search(
     treffer = sorted(exact, key=lambda i: i.name) + sorted(fuzzy, key=lambda i: i.name)
     treffer = treffer[:MAX_TREFFER]
 
-    pfade = _breadcrumbs(db)
+    pfade = alle_breadcrumbs(db)
     return {
         "items": [
             {
