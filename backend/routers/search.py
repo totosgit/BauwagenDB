@@ -91,6 +91,7 @@ def search(
                 "location_jahr_id": i.location_jahr_id,
                 "tags": i.tags,
                 "aufgebaut": i.aufgebaut,
+                "aufgebaut_notiz": i.aufgebaut_notiz,
             }
             for i in treffer
         ]

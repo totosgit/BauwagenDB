@@ -15,7 +15,7 @@
 
     <div class="rand" :style="{ transform: `rotate(${randWinkel}deg)` }">
       <div class="name">{{ item.name }}</div>
-      <div class="ort" :class="{ fehlt: !ort }">{{ ort || 'noch kein Ort' }}</div>
+      <div class="ort" :class="{ fehlt: !ort && !aufgebaut, aufgebaut }">{{ ortText }}</div>
     </div>
   </div>
 </template>
@@ -31,6 +31,9 @@ const props = defineProps({
   breadcrumb: { type: String, default: '' },
   /** 0 = vollständiger Pfad. Sonst nur die letzten n Stationen. */
   ortTiefe: { type: Number, default: 0 },
+  /** "aufgebaut" gilt nur auf dem Lager -- unter dem Jahr hat der
+      Gegenstand einen ganz normalen Ort. */
+  imLager: { type: Boolean, default: true },
 })
 
 defineEmits(['oeffnen'])
@@ -68,6 +71,18 @@ const ort = computed(() => {
   // "Boden 1 › Bastelkiste" allein sagt nicht, in welchem Regal das war.
   const gezeigt = props.ortTiefe > 0 ? teile.slice(-props.ortTiefe) : teile
   return gezeigt.join(' › ')
+})
+
+/* Aufgebautes hat bewusst keinen Lagerort -- es steht im Lager herum.
+   "noch kein Ort" wäre da schlicht falsch. */
+const aufgebaut = computed(() => props.imLager && !!props.item.aufgebaut)
+const ortText = computed(() => {
+  if (aufgebaut.value) {
+    return props.item.aufgebaut_notiz
+      ? `aufgebaut · ${props.item.aufgebaut_notiz}`
+      : 'aufgebaut'
+  }
+  return ort.value || 'noch kein Ort'
 })
 
 const mengeKurz = computed(() => {
@@ -173,6 +188,7 @@ const mengeKurz = computed(() => {
   overflow-wrap: anywhere;
 }
 .ort.fehlt { color: var(--rot); }
+.ort.aufgebaut { color: #6b5a2c; }
 
 /* Menge als kleiner Stempel in der Fotoecke */
 .menge {

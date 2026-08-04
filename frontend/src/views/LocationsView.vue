@@ -45,11 +45,14 @@
          denen der Typ erlaubt ist und die nicht im Ort selbst liegen. -->
     <div v-if="umzug.open" class="modal-backdrop" @click.self="umzug.open = false">
       <div class="modal-box">
-        <h2 class="modal-title">„{{ umzug.name }}" verschieben</h2>
-        <p class="umzug-hinweis">
-          Wohin soll der Ort samt Inhalt? Die Gegenstände ziehen automatisch mit.
-        </p>
+        <div class="modal-kopf">
+          <h2 class="modal-title">„{{ umzug.name }}" verschieben</h2>
+          <p class="umzug-hinweis">
+            Wohin soll der Ort samt Inhalt? Die Gegenstände ziehen automatisch mit.
+          </p>
+        </div>
 
+        <div class="modal-inhalt">
         <div v-if="umzug.laedt" class="loading">Ziele werden gesucht …</div>
         <div v-else-if="!umzug.ziele.length" class="empty">
           <Icon name="orte" class="icon" />
@@ -70,22 +73,30 @@
           </button>
         </div>
 
-        <div v-if="umzug.error" class="error-msg">{{ umzug.error }}</div>
-        <div class="modal-actions">
+        </div>
+
+        <div class="modal-fuss">
+          <div v-if="umzug.error" class="error-msg">{{ umzug.error }}</div>
+          <div class="modal-actions">
           <button type="button" class="btn btn-secondary" @click="umzug.open = false">Abbrechen</button>
           <button
             type="button" class="btn btn-primary"
             :disabled="umzug.zielId === null || umzug.saving"
             @click="umzugAusfuehren"
           >{{ umzug.saving ? '…' : 'Verschieben' }}</button>
+          </div>
         </div>
       </div>
     </div>
 
     <div v-if="modal.open" class="modal-backdrop" @click.self="modal.open = false">
       <div class="modal-box">
-        <h2 class="modal-title">{{ modal.id ? 'Ort bearbeiten' : 'Neuer Lagerort' }}</h2>
+        <div class="modal-kopf">
+          <h2 class="modal-title">{{ modal.id ? 'Ort bearbeiten' : 'Neuer Lagerort' }}</h2>
+        </div>
 
+        <form class="modal-form" @submit.prevent="saveModal">
+        <div class="modal-inhalt">
         <div v-if="allowedTypes.length" class="type-hint">
           <span v-if="modal.form.parent_id">
             Unter <strong>{{ parentName }}</strong> erlaubt:
@@ -97,7 +108,6 @@
           Dieser Typ kann keine Unterbereiche haben.
         </div>
 
-        <form @submit.prevent="saveModal">
           <div class="form-group">
             <label>Name *</label>
             <input v-model="modal.form.name" required placeholder="z.B. Bauwagen, Regal A, Schrank Links ..." />
@@ -140,6 +150,9 @@
             <div class="form-group" style="flex:1"><label>Z</label><input v-model.number="modal.form.coordinate_z" type="number" step="0.1" placeholder="0" /></div>
           </div>
 
+        </div>
+
+        <div class="modal-fuss">
           <div v-if="modal.error" class="error-msg">{{ modal.error }}</div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="modal.open = false">Abbrechen</button>
@@ -147,8 +160,9 @@
               type="submit"
               class="btn btn-primary"
               :disabled="modal.saving || !allowedTypes.includes(modal.form.type)"
-            >{{ modal.saving ? '...' : 'Speichern' }}</button>
+            >{{ modal.saving ? '…' : 'Speichern' }}</button>
           </div>
+        </div>
         </form>
       </div>
     </div>
@@ -363,26 +377,45 @@ onMounted(load)
 }
 
 /* Modal */
+/* Der Speichern-Knopf lag auf dem Handy unter der Navigationsleiste.
+   Erster Versuch mit position:sticky und negativem bottom war falsch --
+   damit klebt er unterhalb des sichtbaren Bereichs. Jetzt eine feste
+   Aufteilung: Kopf oben, Inhalt scrollt, Knöpfe unverrückbar am Fuß. */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);
   display: flex; align-items: flex-end;
-  /* über der Navigationsleiste (z-index 100), sonst liegt sie darüber */
+  /* über der Navigationsleiste, die bei z-index 100 liegt */
   z-index: 200;
 }
 .modal-box {
-  background: var(--white); border-radius: var(--radius) var(--radius) 0 0;
-  padding: 24px; width: 100%;
-  max-height: 92vh; max-height: 92dvh;
-  overflow-y: auto;
-  /* Der Speichern-Knopf lag auf dem Handy unter der Navigationsleiste und
-     der Home-Anzeige. Beides hier unten freihalten. */
-  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  overscroll-behavior: contain;
+  background: var(--white);
+  border-radius: var(--radius) var(--radius) 0 0;
+  width: 100%;
+  /* dvh statt vh: auf dem Handy zählt vh die Adressleiste nicht mit,
+     dadurch wurde das Fenster höher als der sichtbare Bereich. */
+  max-height: 88dvh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
 }
-.modal-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
+.modal-form { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.modal-kopf { padding: 20px 22px 0; flex-shrink: 0; }
+.modal-inhalt {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 12px 22px 8px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.modal-fuss {
+  flex-shrink: 0;
+  padding: 12px 22px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: var(--white);
+  box-shadow: 0 -8px 14px -10px rgba(48, 26, 8, 0.3);
+}
+.modal-title { font-size: 22px; font-weight: 700; }
 
-.umzug-hinweis { font-size: 15px; color: var(--tinte-blass); margin-bottom: 14px; line-height: 1.4; }
-.ziel-liste { display: flex; flex-direction: column; gap: 7px; max-height: 46vh; overflow-y: auto; }
+.umzug-hinweis { font-size: 15px; color: var(--tinte-blass); margin-top: 6px; line-height: 1.4; }
+.ziel-liste { display: flex; flex-direction: column; gap: 7px; }
 .ziel {
   display: flex; align-items: center; gap: 11px;
   padding: 12px 13px; min-height: 56px;
@@ -397,16 +430,7 @@ onMounted(load)
 .ziel-name { font-weight: 600; font-size: 16px; }
 .ziel-pfad { font-family: var(--schrift-hand); font-size: 14.5px; color: var(--tinte-blass); }
 .coord-row { display: flex; gap: 8px; }
-/* Die Knöpfe kleben unten am Fenster, damit man beim langen Formular nicht
-   erst scrollen muss und sie nie hinter der Navigationsleiste landen. */
-.modal-actions {
-  display: flex; gap: 10px; margin-top: 18px;
-  position: sticky; bottom: calc(-24px - env(safe-area-inset-bottom, 0px));
-  background: var(--white);
-  padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
-  margin-bottom: calc(-24px - env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -8px 12px -8px rgba(48, 26, 8, 0.25);
-}
+.modal-actions { display: flex; gap: 10px; }
 .modal-actions .btn { flex: 1; }
 .error-msg { color: var(--rot); font-size: 14px; margin-top: 6px; }
 </style>

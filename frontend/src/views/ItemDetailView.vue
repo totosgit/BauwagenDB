@@ -18,12 +18,19 @@
           class="gross"
           :item="item"
           :breadcrumb="activeBreadcrumb"
+          :im-lager="mode !== 'jahr'"
         />
-        <button class="foto-knopf" @click="triggerImageUpload">
-          <Icon name="kamera" class="icon" />
-          {{ item.image_path ? 'Foto ersetzen' : 'Foto aufnehmen' }}
-        </button>
-        <input ref="fileInput" type="file" accept="image/*" capture="environment" style="display:none" @change="onFileChange" />
+        <div class="foto-knoepfe">
+          <button class="foto-knopf" @click="kameraEingabe?.click()">
+            <Icon name="kamera" class="icon" />Aufnehmen
+          </button>
+          <button class="foto-knopf" @click="galerieEingabe?.click()">
+            <Icon name="orte" class="icon" />Auswählen
+          </button>
+        </div>
+        <!-- Getrennte Felder: mit "capture" lässt iOS nur die Kamera zu -->
+        <input ref="kameraEingabe" type="file" accept="image/*" capture="environment" style="display:none" @change="onFileChange" />
+        <input ref="galerieEingabe" type="file" accept="image/*" style="display:none" @change="onFileChange" />
       </div>
 
       <div class="card" style="margin-top: 14px;">
@@ -121,7 +128,8 @@ const router = useRouter()
 const id = route.params.id
 const item = ref(null)
 const loading = ref(false)
-const fileInput = ref(null)
+const kameraEingabe = ref(null)
+const galerieEingabe = ref(null)
 const showShoppingForm = ref(false)
 const shopForm = ref({ quantity: 1, unit: 'Stück', urgency: 'mittel' })
 const urgencies = [
@@ -158,12 +166,11 @@ async function load() {
   finally { loading.value = false }
 }
 
-function triggerImageUpload() { fileInput.value?.click() }
-
 async function onFileChange(e) {
   const file = e.target.files[0]
   if (!file) return
   item.value = await uploadImage(id, file)
+  e.target.value = ''   // sonst löst dieselbe Datei kein change mehr aus
 }
 
 async function doDelete() {
@@ -183,6 +190,7 @@ onMounted(load)
   padding-top: 8px;
 }
 .polaroid-halter > :first-child { width: 100%; max-width: 320px; }
+.foto-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 
 .foto-knopf {
   display: inline-flex; align-items: center; gap: 8px;

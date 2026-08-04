@@ -67,6 +67,7 @@
             :key="item.id"
             :item="item"
             :breadcrumb="activeBreadcrumb(item)"
+            :im-lager="mode !== 'jahr'"
             @oeffnen="$router.push('/items/' + item.id)"
           />
         </div>

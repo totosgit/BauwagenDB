@@ -13,24 +13,30 @@
            Gegenstands-Nummer, deshalb wird das Bild bis zum Speichern
            vorgehalten und direkt danach hochgeladen. -->
       <div class="card foto-karte">
-        <div class="foto-vorschau" :class="{ leer: !vorschau }" @click="fotoWaehlen">
+        <div class="foto-vorschau" :class="{ leer: !vorschau }" @click="galerieOeffnen">
           <img v-if="vorschau" :src="vorschau" alt="Vorschau" />
           <template v-else>
             <Icon name="kamera" class="icon gross" />
-            <span class="foto-hinweis">Foto aufnehmen oder wählen</span>
+            <span class="foto-hinweis">Foto aufnehmen oder auswählen</span>
           </template>
         </div>
         <div class="foto-knoepfe">
-          <button type="button" class="btn btn-secondary btn-sm" @click="fotoWaehlen">
-            <Icon name="kamera" class="icon" />{{ vorschau ? 'Anderes Foto' : 'Foto hinzufügen' }}
+          <button type="button" class="btn btn-secondary btn-sm" @click="kameraOeffnen">
+            <Icon name="kamera" class="icon" />Aufnehmen
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" @click="galerieOeffnen">
+            <Icon name="orte" class="icon" />Auswählen
           </button>
           <button v-if="vorschau" type="button" class="btn btn-sm btn-danger" @click="fotoEntfernen">
             <Icon name="muell" class="icon" />Entfernen
           </button>
         </div>
-        <!-- capture öffnet auf dem Handy direkt die Kamera; über "Datei
-             wählen" kommt man trotzdem an die Mediathek -->
-        <input ref="dateiEingabe" type="file" accept="image/*" capture="environment"
+        <!-- Zwei getrennte Eingaben: mit "capture" öffnet iOS direkt die
+             Kamera und lässt gar keine Auswahl aus der Mediathek zu.
+             Deshalb ein zweites Feld ohne capture zum Auswählen. -->
+        <input ref="kameraEingabe" type="file" accept="image/*" capture="environment"
+               style="display:none" @change="fotoGewaehlt" />
+        <input ref="galerieEingabe" type="file" accept="image/*"
                style="display:none" @change="fotoGewaehlt" />
         <div v-if="fotoFehler" class="error-msg" style="margin-top:8px">{{ fotoFehler }}</div>
       </div>
@@ -49,9 +55,9 @@
           <datalist id="kategorie-liste">
             <option v-for="k in kategorien" :key="k" :value="k" />
           </datalist>
-          <div v-if="kategorien.length" class="vorschlaege">
+          <div v-if="kategorien.length" class="vorschlaege scrollbar">
             <button
-              v-for="k in kategorien.slice(0, 6)" :key="k"
+              v-for="k in kategorien" :key="k"
               type="button" class="vorschlag"
               :class="{ an: form.category === k }"
               @click="form.category = form.category === k ? '' : k"
@@ -135,11 +141,14 @@
             @keydown.enter.prevent="tagAusEingabe"
             @keydown.,.prevent="tagAusEingabe"
           />
-          <div v-if="offeneVorschlaege.length" class="vorschlaege">
+          <div v-if="offeneVorschlaege.length" class="vorschlaege scrollbar">
             <button
               v-for="t in offeneVorschlaege" :key="t"
               type="button" class="vorschlag" @click="tagHinzufuegen(t)"
             >+ {{ t }}</button>
+          </div>
+          <div v-else-if="tagEingabe.trim()" class="tag-leer">
+            Kein vorhandener Tag passt — Enter legt „{{ tagEingabe.trim() }}" neu an.
           </div>
         </div>
 
@@ -190,7 +199,8 @@ const saveSchritt = ref('Speichern …')
 const error = ref('')
 
 // ── Foto ──
-const dateiEingabe = ref(null)
+const kameraEingabe = ref(null)
+const galerieEingabe = ref(null)
 const gewaehlteDatei = ref(null)     // wird erst nach dem Speichern hochgeladen
 const vorschau = ref('')             // Data-URL oder vorhandener Bildpfad
 const fotoFehler = ref('')
@@ -201,13 +211,15 @@ const tagEingabe = ref('')
 const gewaehlteTags = computed(() =>
   (form.value.tags || '').split(',').map(t => t.trim()).filter(Boolean)
 )
+// Alle vorhandenen Tags anbieten, nicht nur eine Auswahl -- sonst findet
+// man genau den nicht, den man sucht. Die Liste bekommt stattdessen eine
+// Höhenbegrenzung und scrollt bei Bedarf.
 const offeneVorschlaege = computed(() => {
   const schon = new Set(gewaehlteTags.value.map(t => t.toLowerCase()))
   const suche = tagEingabe.value.trim().toLowerCase()
   return alleTags.value
     .filter(t => !schon.has(t.toLowerCase()))
     .filter(t => !suche || t.toLowerCase().includes(suche))
-    .slice(0, 8)
 })
 
 function setzeTags(liste) {
@@ -227,9 +239,13 @@ function tagEntfernen(t) {
   setzeTags(gewaehlteTags.value.filter(x => x !== t))
 }
 
-function fotoWaehlen() {
+function kameraOeffnen() {
   fotoFehler.value = ''
-  dateiEingabe.value?.click()
+  kameraEingabe.value?.click()
+}
+function galerieOeffnen() {
+  fotoFehler.value = ''
+  galerieEingabe.value?.click()
 }
 
 function fotoGewaehlt(e) {
@@ -248,6 +264,8 @@ function fotoGewaehlt(e) {
   const leser = new FileReader()
   leser.onload = () => { vorschau.value = leser.result }
   leser.readAsDataURL(datei)
+  // zurücksetzen, sonst löst dieselbe Datei beim zweiten Mal kein change aus
+  e.target.value = ''
 }
 
 function fotoEntfernen() {
@@ -255,7 +273,8 @@ function fotoEntfernen() {
   vorschau.value = ''
   fotoFehler.value = ''
   fotoGeloescht.value = true
-  if (dateiEingabe.value) dateiEingabe.value.value = ''
+  if (kameraEingabe.value) kameraEingabe.value.value = ''
+  if (galerieEingabe.value) galerieEingabe.value.value = ''
 }
 
 async function load() {
@@ -355,6 +374,11 @@ onMounted(load)
 
 /* ── Vorschläge für Kategorie und Tags ── */
 .vorschlaege { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+/* Bei vielen Tags wird die Liste sonst endlos -- lieber scrollen lassen. */
+.vorschlaege.scrollbar { max-height: 132px; overflow-y: auto; padding-right: 2px; }
+.tag-leer {
+  margin-top: 8px; font-size: 14px; color: var(--tinte-blass); line-height: 1.35;
+}
 .vorschlag {
   padding: 6px 11px; min-height: 36px;
   border: 1px solid var(--linie); border-radius: var(--radius-sm);
