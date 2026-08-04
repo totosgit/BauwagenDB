@@ -57,6 +57,13 @@ export const uploadImage = (id, file) => {
 }
 export const deleteImage = (id) => api.delete(`/items/${id}/image`).then(r => r.data)
 export const getCategories = () => api.get('/items/categories').then(r => r.data)
+export const getCategoryStats = () => api.get('/items/categories/stats').then(r => r.data)
+export const renameCategory = (name, neu) =>
+  api.patch(`/items/categories/${encodeURIComponent(name)}`, null, { params: { neu } }).then(r => r.data)
+export const deleteCategory = (name) =>
+  api.delete(`/items/categories/${encodeURIComponent(name)}`)
+// Bereits vergebene Tags -- Vorschläge im Gegenstandsformular
+export const getTags = () => api.get('/items/tags').then(r => r.data)
 
 // --- Getränke ---
 export const getDrinks = () => api.get('/drinks/').then(r => r.data)
@@ -94,4 +101,8 @@ export const createLocation = (data) => api.post('/locations/', data).then(r => 
 export const updateLocation = (id, data) => api.put(`/locations/${id}`, data).then(r => r.data)
 export const deleteLocation = (id) => api.delete(`/locations/${id}`)
 export const moveLocation = (id, direction) => api.patch(`/locations/${id}/move`, null, { params: { direction } }).then(r => r.data)
+// Umhängen an einen anderen Elternort (ziel_id 0 = oberste Ebene)
+export const getMoveTargets = (id) => api.get(`/locations/${id}/verschiebe-ziele`).then(r => r.data)
+export const relocateLocation = (id, ziel_id) =>
+  api.patch(`/locations/${id}/verschiebe`, null, { params: { ziel_id } }).then(r => r.data)
 export const reorderLocations = (orderedIds) => api.post('/locations/reorder', orderedIds)

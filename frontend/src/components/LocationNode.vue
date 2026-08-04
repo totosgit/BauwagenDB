@@ -38,6 +38,7 @@
           @click="handlers.onCreate(node.id)"
           title="Unterbereich anlegen"
         >+</button>
+        <button class="btn btn-secondary btn-sm" @click="handlers.onRelocate(node)" aria-label="Woanders hin verschieben"><Icon name="umziehen" class="icon" /></button>
         <button class="btn btn-secondary btn-sm" @click="handlers.onEdit(node)" aria-label="Bearbeiten"><Icon name="stift" class="icon" /></button>
         <button class="btn btn-sm btn-del" @click="handlers.onDelete(node)" aria-label="Löschen"><Icon name="muell" class="icon" /></button>
       </div>

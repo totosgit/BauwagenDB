@@ -18,7 +18,6 @@
           class="gross"
           :item="item"
           :breadcrumb="activeBreadcrumb"
-          :ort-tiefe="4"
         />
         <button class="foto-knopf" @click="triggerImageUpload">
           <Icon name="kamera" class="icon" />

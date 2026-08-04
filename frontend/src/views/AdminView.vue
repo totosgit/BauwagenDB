@@ -11,6 +11,7 @@
       </button>
       <button :class="{ active: tab === 'personen' }" @click="tab = 'personen'">Personen</button>
       <button :class="{ active: tab === 'gruppen' }" @click="tab = 'gruppen'">Gruppen</button>
+      <button :class="{ active: tab === 'kategorien' }" @click="tab = 'kategorien'">Kategorien</button>
     </div>
 
     <!-- Die Lagerorte sind aus der Navigation hierher gewandert: man legt sie
@@ -127,6 +128,49 @@
         </button>
       </div>
     </template>
+
+    <!-- ===== KATEGORIEN ===== -->
+    <template v-if="tab === 'kategorien'">
+      <div class="card" style="margin-bottom:14px">
+        <p class="muted">
+          Kategorien entstehen beim Anlegen eines Gegenstands. Hier lassen sie
+          sich umbenennen — gibst du einen Namen ein, den es schon gibt, werden
+          beide zusammengeführt.
+        </p>
+      </div>
+
+      <div v-if="!kategorien.length" class="empty">
+        <Icon name="dinge" class="icon" />
+        <div class="hinweis">Noch keine Kategorien vergeben</div>
+      </div>
+
+      <div v-for="k in kategorien" :key="k.name" class="card row-card">
+        <template v-if="katBearbeitet === k.name">
+          <input v-model="katEntwurf" class="kat-eingabe" @keyup.enter="katSpeichern(k)" />
+          <div class="row-actions">
+            <button class="btn btn-sm btn-secondary" @click="katBearbeitet = null">Abbrechen</button>
+            <button class="btn btn-sm btn-primary" :disabled="!katEntwurf.trim()" @click="katSpeichern(k)">
+              <Icon name="haken" class="icon" />Übernehmen
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <div style="flex:1; min-width:0">
+            <div class="row-name">{{ k.name }}</div>
+            <div class="row-meta">{{ k.anzahl }} {{ k.anzahl === 1 ? 'Gegenstand' : 'Gegenstände' }}</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-sm btn-secondary" @click="katBearbeiten(k)">
+              <Icon name="stift" class="icon" />Umbenennen
+            </button>
+            <button class="btn btn-sm btn-reject" @click="katEntfernen(k)" aria-label="Kategorie entfernen">
+              <Icon name="muell" class="icon" />
+            </button>
+          </div>
+        </template>
+      </div>
+      <div v-if="katMeldung" class="hint ok" style="margin-top:12px">{{ katMeldung }}</div>
+    </template>
   </div>
 </template>
 
@@ -136,6 +180,7 @@ import {
   getPendingUsers, getUsers, adminUpdateUser, deleteUser, adminResetPassword,
   getGroups, createGroup, deleteGroup,
   getAllSummaries, getDrinks, resetAllTallies,
+  getCategoryStats, renameCategory, deleteCategory,
 } from '../api/index.js'
 import { useAuth } from '../composables/useAuth.js'
 import Icon from '../components/Icon.vue'
@@ -158,6 +203,45 @@ const exportiert = ref(false)
 const leert = ref(false)
 const abMeldung = ref('')
 
+// ── Kategorien ──
+const kategorien = ref([])
+const katBearbeitet = ref(null)
+const katEntwurf = ref('')
+const katMeldung = ref('')
+
+function katBearbeiten(k) {
+  katBearbeitet.value = k.name
+  katEntwurf.value = k.name
+  katMeldung.value = ''
+}
+
+async function katSpeichern(k) {
+  const neu = katEntwurf.value.trim()
+  if (!neu || neu === k.name) { katBearbeitet.value = null; return }
+  const schonDa = kategorien.value.some(
+    x => x.name.toLowerCase() === neu.toLowerCase() && x.name !== k.name
+  )
+  if (schonDa && !confirm(`„${neu}" gibt es schon. Beide zusammenführen?`)) return
+  try {
+    const erg = await renameCategory(k.name, neu)
+    katMeldung.value = schonDa
+      ? `${erg.umbenannt} Gegenstände zu „${neu}" zusammengeführt.`
+      : `„${k.name}" heißt jetzt „${neu}" (${erg.umbenannt} Gegenstände).`
+  } catch (e) {
+    katMeldung.value = e.response?.data?.detail || 'Umbenennen fehlgeschlagen'
+  } finally {
+    katBearbeitet.value = null
+    await load()
+  }
+}
+
+async function katEntfernen(k) {
+  if (!confirm(`Kategorie „${k.name}" von ${k.anzahl} Gegenständen entfernen?\n\nDie Gegenstände bleiben erhalten, sie haben danach keine Kategorie.`)) return
+  await deleteCategory(k.name)
+  katMeldung.value = `„${k.name}" entfernt.`
+  await load()
+}
+
 const personenMitStrichen = computed(
   () => summaries.value.filter(s => s.grand_total > 0).length
 )
@@ -165,9 +249,10 @@ const personenMitStrichen = computed(
 async function load() {
   loading.value = true
   try {
-    [pending.value, users.value, groups.value, summaries.value, drinks.value] =
+    [pending.value, users.value, groups.value, summaries.value, drinks.value, kategorien.value] =
       await Promise.all([
         getPendingUsers(), getUsers(), getGroups(), getAllSummaries(), getDrinks(),
+        getCategoryStats(),
       ])
     strichSumme.value = summaries.value.reduce((n, s) => n + s.grand_total, 0)
   } finally {

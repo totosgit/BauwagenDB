@@ -116,6 +116,13 @@ html, body {
   line-height: 1.45;
   color-scheme: light;
   -webkit-text-size-adjust: 100%;
+  /* Nichts darf die Seite seitlich verschiebbar machen. Sonst wandert die
+     sticky Kopfleiste beim Wischen mit und endet mitten im Bild -- genau
+     das ist mit den überstehenden Klebestreifen der Polaroids passiert.
+     "clip" statt "hidden": hidden würde einen Scroll-Container erzeugen
+     und position:sticky im Inneren kaputtmachen. */
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 body {
@@ -191,6 +198,7 @@ nav a.gesperrt { opacity: 0.32; pointer-events: none; }
   width: 100%;
   position: relative;
   z-index: 1;
+  min-width: 0;      /* verhindert, dass breite Kinder die Seite aufziehen */
 }
 
 .page-header {

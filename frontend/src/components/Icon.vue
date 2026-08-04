@@ -53,6 +53,8 @@ const PFADE = {
   fach:       '<rect x="3.5" y="7" width="17" height="10" rx="1.5"/><path d="M12 7v10"/>',
   boden:      '<rect x="3.5" y="9" width="17" height="6" rx="1.5"/>',
   schrank:    '<rect x="4.5" y="3" width="15" height="18" rx="1.5"/><path d="M12 3v18"/><path d="M9.6 11.5h-1.4"/><path d="M14.4 11.5h1.4"/>',
+  umziehen:   '<path d="M9 4.5H5.5a1.5 1.5 0 0 0-1.5 1.5v12a1.5 1.5 0 0 0 1.5 1.5H9"/><path d="M14.5 8 19 12l-4.5 4"/><path d="M19 12H9"/>',
+
   wand:       '<rect x="3" y="5.5" width="18" height="13" rx="1"/><path d="M3 9.8h18"/><path d="M3 14.2h18"/><path d="M9 5.5v4.3"/><path d="M15 9.8v4.4"/><path d="M9 14.2v4.3"/>',
 }
 

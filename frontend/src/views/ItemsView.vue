@@ -201,12 +201,16 @@ onMounted(async () => {
 
 .filter-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 6px; }
 
-/* Pinnwand: zwei Spalten, mit Luft für die Klebestreifen */
+/* Pinnwand. auto-fill statt fester Spaltenzahl: auf dem Handy zwei, auf
+   breiteren Geräten mehr, ohne dass die Abzüge riesig werden. */
 .polaroids {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 22px 15px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 20px 13px;
   margin-top: 12px;
   padding-top: 6px;
+}
+@media (max-width: 360px) {
+  .polaroids { grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 16px 10px; }
 }
 </style>

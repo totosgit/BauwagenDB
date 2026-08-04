@@ -59,25 +59,54 @@
           <span class="dazu">{{ offene.length }}</span>
         </div>
 
-        <div
-          v-for="item in offene" :key="item.id"
-          class="zettel-zeile"
-          :class="item.urgency"
-        >
-          <button class="kaestchen" @click="toggleDone(item)" aria-label="Abhaken" />
-          <div class="eintrag">
-            <div class="was">{{ item.name }}</div>
-            <div class="dazu-zeile">
-              <span class="menge">{{ item.quantity }} {{ item.unit }}</span>
-              <span class="von">{{ item.author }}</span>
+        <template v-for="item in offene" :key="item.id">
+          <!-- Bearbeiten: ersetzt die Zeile an Ort und Stelle -->
+          <div v-if="bearbeitet === item.id" class="zeile-bearbeiten">
+            <input v-model="entwurf.name" placeholder="Was besorgen?" @keyup.enter="speichern(item)" />
+            <div class="menge-reihe">
+              <input v-model.number="entwurf.quantity" type="number" min="0.5" step="0.5" style="flex:1" />
+              <select v-model="entwurf.unit" style="flex:1.3">
+                <option>Stück</option><option>Meter</option><option>Liter</option>
+                <option>kg</option><option>Rolle</option><option>Paar</option>
+                <option>Satz</option><option>Packung</option><option>Kasten</option>
+              </select>
             </div>
-            <div v-if="item.notes" class="zusatz">{{ item.notes }}</div>
+            <div class="stufen">
+              <button
+                v-for="u in urgencies" :key="u.value"
+                type="button" class="stufe"
+                :class="[u.value, { an: entwurf.urgency === u.value }]"
+                @click="entwurf.urgency = u.value"
+              >{{ u.label }}</button>
+            </div>
+            <input v-model="entwurf.notes" placeholder="Notiz (optional)" />
+            <div class="bearbeiten-knoepfe">
+              <button class="btn btn-secondary btn-sm" @click="abbrechen">Abbrechen</button>
+              <button class="btn btn-primary btn-sm" :disabled="!entwurf.name.trim()" @click="speichern(item)">
+                <Icon name="haken" class="icon" />Übernehmen
+              </button>
+            </div>
           </div>
-          <span v-if="item.urgency === 'dringend'" class="rotstift">!</span>
-          <button class="streichen" @click="remove(item)" aria-label="Vom Zettel streichen">
-            <Icon name="schliessen" class="icon" />
-          </button>
-        </div>
+
+          <div v-else class="zettel-zeile" :class="item.urgency">
+            <button class="kaestchen" @click="toggleDone(item)" aria-label="Abhaken" />
+            <div class="eintrag" @click="bearbeiten(item)">
+              <div class="was">{{ item.name }}</div>
+              <div class="dazu-zeile">
+                <span class="menge">{{ item.quantity }} {{ item.unit }}</span>
+                <span class="von">{{ item.author }}</span>
+              </div>
+              <div v-if="item.notes" class="zusatz">{{ item.notes }}</div>
+            </div>
+            <span v-if="item.urgency === 'dringend'" class="rotstift">!</span>
+            <button class="stift" @click="bearbeiten(item)" aria-label="Bearbeiten">
+              <Icon name="stift" class="icon" />
+            </button>
+            <button class="streichen" @click="remove(item)" aria-label="Vom Zettel streichen">
+              <Icon name="schliessen" class="icon" />
+            </button>
+          </div>
+        </template>
       </div>
 
       <!-- Abgehakte auf eigenem Zettel -->
@@ -122,6 +151,36 @@ const urgencies = [
 ]
 
 const newForm = ref({ name: '', quantity: 1, unit: 'Stück', urgency: 'mittel' })
+
+// Bearbeiten offener Einträge -- das Backend kann das laengst (PATCH),
+// es fehlte nur die Oberflaeche.
+const bearbeitet = ref(null)
+const entwurf = ref({ name: '', quantity: 1, unit: 'Stück', urgency: 'mittel', notes: '' })
+
+function bearbeiten(item) {
+  bearbeitet.value = item.id
+  entwurf.value = {
+    name: item.name,
+    quantity: item.quantity,
+    unit: item.unit,
+    urgency: item.urgency,
+    notes: item.notes || '',
+  }
+}
+function abbrechen() { bearbeitet.value = null }
+
+async function speichern(item) {
+  if (!entwurf.value.name.trim()) return
+  await updateShoppingItem(item.id, {
+    name: entwurf.value.name.trim(),
+    quantity: entwurf.value.quantity,
+    unit: entwurf.value.unit,
+    urgency: entwurf.value.urgency,
+    notes: entwurf.value.notes.trim() || null,
+  })
+  bearbeitet.value = null
+  await load()
+}
 
 const offene = computed(() => items.value.filter(i => !i.erledigt))
 const erledigte = computed(() => items.value.filter(i => i.erledigt))
@@ -237,7 +296,18 @@ onMounted(load)
 .abgehakt .dazu-zeile { opacity: 0.45; }
 .abgehakt .kaestchen { opacity: 0.6; }
 
-.streichen {
+.zeile-bearbeiten {
+  display: flex; flex-direction: column; gap: 9px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--linie);
+}
+.zeile-bearbeiten .menge-reihe { display: flex; gap: 10px; }
+.bearbeiten-knoepfe { display: flex; gap: 8px; margin-top: 2px; }
+.bearbeiten-knoepfe .btn { flex: 1; }
+
+.eintrag { cursor: pointer; }
+
+.stift, .streichen {
   border: none; background: none; cursor: pointer;
   color: var(--tinte-blass);
   font-size: 15px; padding: 6px;
@@ -245,4 +315,5 @@ onMounted(load)
   -webkit-tap-highlight-color: transparent;
 }
 .streichen:active { color: var(--rot); }
+.stift:active { color: var(--gebrannt); }
 </style>

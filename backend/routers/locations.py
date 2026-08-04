@@ -42,6 +42,43 @@ def validate_type(parent: Location | None, child_type: str):
         )
 
 
+def ist_nachfahre(db: Session, kandidat_id: int, moeglicher_vorfahre_id: int) -> bool:
+    """Liegt kandidat_id unterhalb von moeglicher_vorfahre_id?
+
+    Wird gebraucht, damit ein Ort nicht in sich selbst verschoben werden
+    kann. Ohne diese Pruefung entstuende ein Kreis, und der Baumaufbau
+    liefe endlos.
+    """
+    gesehen = set()
+    aktuell = kandidat_id
+    while aktuell is not None and aktuell not in gesehen:
+        if aktuell == moeglicher_vorfahre_id:
+            return True
+        gesehen.add(aktuell)
+        ort = db.get(Location, aktuell)
+        if ort is None:
+            return False
+        aktuell = ort.parent_id
+    return False
+
+
+def pruefe_verschiebung(db: Session, loc: Location, neuer_parent_id: int | None) -> Location | None:
+    """Gemeinsame Pruefung fuer Umhaengen. Gibt den neuen Elternort zurueck."""
+    if neuer_parent_id is None:
+        return None
+    if neuer_parent_id == loc.id:
+        raise HTTPException(status_code=400, detail="Ein Ort kann nicht in sich selbst liegen")
+    ziel = db.get(Location, neuer_parent_id)
+    if ziel is None:
+        raise HTTPException(status_code=404, detail="Zielort nicht gefunden")
+    if ist_nachfahre(db, neuer_parent_id, loc.id):
+        raise HTTPException(
+            status_code=400,
+            detail=f"'{ziel.name}' liegt innerhalb von '{loc.name}' -- das ergaebe einen Kreis",
+        )
+    return ziel
+
+
 def sorted_siblings(db: Session, parent_id: int | None) -> list[Location]:
     return (
         db.query(Location)
@@ -118,7 +155,10 @@ def update_location(location_id: int, data: LocationUpdate, db: Session = Depend
         raise HTTPException(status_code=404, detail="Location not found")
     new_type = data.type if data.type is not None else loc.type
     new_parent_id = data.parent_id if "parent_id" in data.model_fields_set else loc.parent_id
-    parent = db.get(Location, new_parent_id) if new_parent_id else None
+    if new_parent_id != loc.parent_id:
+        parent = pruefe_verschiebung(db, loc, new_parent_id)
+    else:
+        parent = db.get(Location, new_parent_id) if new_parent_id else None
     validate_type(parent, new_type)
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(loc, field, value)
@@ -176,3 +216,73 @@ def delete_location(location_id: int, db: Session = Depends(get_db), _: User = D
         raise HTTPException(status_code=400, detail="Location still has items. Move or delete them first.")
     db.delete(loc)
     db.commit()
+
+
+@router.get("/{location_id}/verschiebe-ziele", response_model=list[LocationResponse])
+def verschiebe_ziele(
+    location_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(current_user),
+):
+    """Wohin darf dieser Ort verschoben werden?
+
+    Erlaubt sind alle Orte, unter denen der Typ zulaessig ist und die nicht
+    im Ort selbst liegen. Zusaetzlich die Root-Ebene, falls der Typ dort
+    stehen darf -- als eigener Eintrag mit id 0.
+    """
+    loc = db.get(Location, location_id)
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    # Nach Pfad sortieren, nicht nach Name: es gibt mehrere "Boden 0",
+    # und untereinander ergeben sie nur mit ihrem Pfad einen Sinn.
+    ziele = []
+    for kandidat in db.query(Location).all():
+        if kandidat.id == loc.id or kandidat.id == loc.parent_id:
+            continue
+        if loc.type not in VALID_CHILDREN.get(kandidat.type, []):
+            continue
+        if ist_nachfahre(db, kandidat.id, loc.id):
+            continue
+        ziele.append(build_location_response(kandidat, db))
+
+    ziele.sort(key=lambda z: (z["breadcrumb"] or z["name"]).lower())
+
+    if loc.parent_id is not None and loc.type in VALID_CHILDREN[None]:
+        ziele.insert(0, {
+            "id": 0, "name": "Oberste Ebene", "description": None,
+            "type": "sonstiges", "storage_mode": "both",
+            "coordinate_x": None, "coordinate_y": None, "coordinate_z": None,
+            "parent_id": None, "created_at": loc.created_at,
+            "item_count": 0, "breadcrumb": "",
+        })
+    return ziele
+
+
+@router.patch("/{location_id}/verschiebe", response_model=LocationResponse)
+def verschiebe_location(
+    location_id: int,
+    ziel_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(current_admin),
+):
+    """Haengt einen Ort samt Inhalt unter einen anderen Elternort.
+
+    ziel_id 0 bedeutet oberste Ebene. Die enthaltenen Gegenstaende ziehen
+    automatisch mit -- sie haengen am Ort, nicht am Pfad.
+    """
+    loc = db.get(Location, location_id)
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    neuer_parent_id = None if ziel_id == 0 else ziel_id
+    ziel = pruefe_verschiebung(db, loc, neuer_parent_id)
+    validate_type(ziel, loc.type)
+
+    loc.parent_id = neuer_parent_id
+    # ans Ende der neuen Geschwister setzen
+    geschwister = [g for g in sorted_siblings(db, neuer_parent_id) if g.id != loc.id]
+    loc.sort_order = (geschwister[-1].sort_order + 10) if geschwister else 0
+    db.commit()
+    db.refresh(loc)
+    return build_location_response(loc, db)

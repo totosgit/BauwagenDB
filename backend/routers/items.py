@@ -1,9 +1,12 @@
 import os
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from sqlalchemy import func
 from sqlalchemy.orm import Session
+
+from auth import current_admin, current_user
 from database import get_db, IMAGES_DIR
-from models import Item
+from models import Item, User
 from schemas import ItemCreate, ItemUpdate, ItemResponse
 from utils import alle_breadcrumbs, get_breadcrumb
 
@@ -60,8 +63,75 @@ def list_items(
 
 @router.get("/categories", response_model=list[str])
 def list_categories(db: Session = Depends(get_db)):
-    rows = db.query(Item.category).filter(Item.category != None).distinct().all()
+    rows = db.query(Item.category).filter(Item.category != None).distinct().all()  # noqa: E711
     return sorted([r[0] for r in rows if r[0]])
+
+
+@router.get("/categories/stats")
+def category_stats(db: Session = Depends(get_db), _: User = Depends(current_user)):
+    """Kategorien mit Anzahl -- Grundlage fuer die Verwaltung."""
+    rows = (
+        db.query(Item.category, func.count(Item.id))
+        .filter(Item.category != None)  # noqa: E711
+        .group_by(Item.category)
+        .all()
+    )
+    return sorted(
+        [{"name": n, "anzahl": a} for n, a in rows if n],
+        key=lambda k: k["name"].lower(),
+    )
+
+
+@router.patch("/categories/{name}")
+def rename_category(
+    name: str,
+    neu: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(current_admin),
+):
+    """Benennt eine Kategorie um. Gibt es das Ziel schon, werden beide
+    zusammengefuehrt -- Kategorien sind ein Textfeld am Gegenstand, keine
+    eigene Tabelle."""
+    neu = neu.strip()
+    if not neu:
+        raise HTTPException(status_code=400, detail="Der neue Name darf nicht leer sein")
+    betroffen = db.query(Item).filter(Item.category == name).update(
+        {"category": neu}, synchronize_session=False
+    )
+    db.commit()
+    if betroffen == 0:
+        raise HTTPException(status_code=404, detail="Kategorie nicht gefunden")
+    return {"umbenannt": betroffen, "von": name, "nach": neu}
+
+
+@router.delete("/categories/{name}", status_code=204)
+def delete_category(
+    name: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(current_admin),
+):
+    """Entfernt die Kategorie von allen Gegenstaenden. Die Gegenstaende
+    selbst bleiben, sie sind danach nur ohne Kategorie."""
+    db.query(Item).filter(Item.category == name).update(
+        {"category": None}, synchronize_session=False
+    )
+    db.commit()
+
+
+@router.get("/tags", response_model=list[str])
+def list_tags(db: Session = Depends(get_db), _: User = Depends(current_user)):
+    """Alle bereits vergebenen Tags -- fuer die Vorschlaege im Formular.
+
+    Tags stehen kommagetrennt in einem Textfeld, deshalb hier aufteilen
+    und Dubletten entfernen (ohne Ruecksicht auf Gross-/Kleinschreibung).
+    """
+    gesehen: dict[str, str] = {}
+    for (roh,) in db.query(Item.tags).filter(Item.tags != None).all():  # noqa: E711
+        for teil in (roh or "").split(","):
+            t = teil.strip()
+            if t:
+                gesehen.setdefault(t.lower(), t)
+    return sorted(gesehen.values(), key=str.lower)
 
 
 @router.get("/{item_id}", response_model=ItemResponse)

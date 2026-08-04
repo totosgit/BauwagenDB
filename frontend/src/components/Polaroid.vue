@@ -27,10 +27,10 @@ import { categoryIcon } from '../utils/kategorien.js'
 
 const props = defineProps({
   item: { type: Object, required: true },
-  /** Voller Pfad; im Polaroid zeigen wir nur die letzten Stationen. */
+  /** Vollständiger Lagerort-Pfad. */
   breadcrumb: { type: String, default: '' },
-  /** Wie viele Pfadstationen ins Polaroid passen. */
-  ortTiefe: { type: Number, default: 2 },
+  /** 0 = vollständiger Pfad. Sonst nur die letzten n Stationen. */
+  ortTiefe: { type: Number, default: 0 },
 })
 
 defineEmits(['oeffnen'])
@@ -61,11 +61,13 @@ const schatten = computed(() => {
   ][v]
 })
 
-/** Nur die letzten Stationen -- der volle Pfad sprengt die schmale Zeile. */
 const ort = computed(() => {
   if (!props.breadcrumb) return ''
   const teile = props.breadcrumb.split('›').map(t => t.trim()).filter(Boolean)
-  return teile.slice(-props.ortTiefe).join(' › ')
+  // Standardmäßig der ganze Pfad: im Lager sucht man den Ort, und
+  // "Boden 1 › Bastelkiste" allein sagt nicht, in welchem Regal das war.
+  const gezeigt = props.ortTiefe > 0 ? teile.slice(-props.ortTiefe) : teile
+  return gezeigt.join(' › ')
 })
 
 const mengeKurz = computed(() => {
@@ -80,12 +82,13 @@ const mengeKurz = computed(() => {
 <style scoped>
 .polaroid {
   position: relative;
+  min-width: 0;              /* darf schrumpfen statt das Raster aufzuziehen */
   background: var(--foto-papier);
   /* leicht ungleichmäßiges Papier statt reinweiß */
   background-image:
     radial-gradient(60% 40% at 15% 8%, rgba(255, 255, 248, 0.7), transparent 60%),
     radial-gradient(70% 50% at 85% 95%, rgba(210, 190, 155, 0.25), transparent 65%);
-  padding: 8px 8px 0;
+  padding: 7px 7px 0;
   border-radius: 1px;
   display: flex;
   flex-direction: column;
@@ -94,26 +97,30 @@ const mengeKurz = computed(() => {
 }
 .polaroid:active { filter: brightness(0.97); }
 
-/* Klebestreifen in drei Varianten */
-.klebe { position: absolute; inset: 0; pointer-events: none; }
+/* Klebestreifen in drei Varianten.
+   Sie ragten früher mit negativen Werten über den Rand hinaus und haben
+   damit die ganze Seite seitlich verschiebbar gemacht. Jetzt liegen sie
+   innerhalb des Polaroids -- der Eindruck bleibt derselbe, weil sie über
+   die Oberkante des Fotofensters greifen. */
+.klebe { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .klebe::before, .klebe::after {
   content: '';
   position: absolute;
-  background: rgba(222, 196, 152, 0.66);
+  background: rgba(222, 196, 152, 0.72);
   box-shadow: 0 1px 2px rgba(48, 26, 8, 0.22), inset 0 0 0 1px rgba(255, 250, 235, 0.28);
 }
 .klebe.mitte::before {
-  top: -7px; left: 50%; width: 52px; height: 15px;
+  top: -6px; left: 50%; width: 48px; height: 14px;
   transform: translateX(-50%) rotate(-1.6deg);
 }
 .klebe.ecken::before {
-  top: -8px; left: -9px; width: 40px; height: 14px; transform: rotate(-42deg);
+  top: 1px; left: -6px; width: 34px; height: 12px; transform: rotate(-42deg);
 }
 .klebe.ecken::after {
-  top: -8px; right: -9px; width: 40px; height: 14px; transform: rotate(42deg);
+  top: 1px; right: -6px; width: 34px; height: 12px; transform: rotate(42deg);
 }
 .klebe.eine::before {
-  top: -8px; left: -10px; width: 42px; height: 14px; transform: rotate(-40deg);
+  top: 1px; left: -7px; width: 36px; height: 12px; transform: rotate(-40deg);
 }
 
 .fenster {
@@ -144,22 +151,26 @@ const mengeKurz = computed(() => {
 
 /* Von Hand auf den Rand geschrieben */
 .rand {
-  padding: 9px 4px 12px;
+  padding: 7px 3px 10px;
   display: flex; flex-direction: column;
-  min-height: 62px;
+  min-height: 58px;
 }
 .name {
   font-family: var(--schrift-hand);
-  font-size: 19px; line-height: 1.12;
+  font-size: 17.5px; line-height: 1.1;
   color: #2f2a20;
   overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 .ort {
   font-family: var(--schrift-hand);
-  font-size: 15.5px; color: #6a6252;
-  line-height: 1.15; margin-top: 2px;
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: 14.5px; color: #6a6252;
+  line-height: 1.2; margin-top: 2px;
+  /* Der volle Pfad darf umbrechen statt abgeschnitten zu werden --
+     höchstens zwei Zeilen, sonst wird die Karte zu hoch. */
+  overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
 }
 .ort.fehlt { color: var(--rot); }
 
@@ -174,6 +185,8 @@ const mengeKurz = computed(() => {
   box-shadow: 0 1px 3px rgba(48, 26, 8, 0.26);
   font-variant-numeric: tabular-nums;
   transform: rotate(1.4deg);
+  max-width: calc(100% - 30px);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 
 /* Große Ausführung für die Detailansicht */
@@ -184,8 +197,11 @@ const mengeKurz = computed(() => {
 .polaroid.gross .menge { top: 19px; right: 19px; font-size: 12px; }
 
 @media (max-width: 390px) {
-  .name { font-size: 17.5px; }
-  .ort { font-size: 14.5px; }
-  .rand { padding: 8px 3px 10px; min-height: 56px; }
+  .polaroid { padding: 6px 6px 0; }
+  .name { font-size: 16px; }
+  .ort { font-size: 13.5px; }
+  .rand { padding: 6px 2px 9px; min-height: 52px; }
+  .menge { font-size: 9.5px; padding: 2px 5px; top: 12px; right: 12px; }
+  .fenster.leer .icon { font-size: 36px; }
 }
 </style>

@@ -41,6 +41,47 @@
     </div>
 
     <!-- Modal: Lagerort anlegen / bearbeiten -->
+    <!-- Verschieben: Ziel auswählen. Das Backend liefert nur Orte, unter
+         denen der Typ erlaubt ist und die nicht im Ort selbst liegen. -->
+    <div v-if="umzug.open" class="modal-backdrop" @click.self="umzug.open = false">
+      <div class="modal-box">
+        <h2 class="modal-title">„{{ umzug.name }}" verschieben</h2>
+        <p class="umzug-hinweis">
+          Wohin soll der Ort samt Inhalt? Die Gegenstände ziehen automatisch mit.
+        </p>
+
+        <div v-if="umzug.laedt" class="loading">Ziele werden gesucht …</div>
+        <div v-else-if="!umzug.ziele.length" class="empty">
+          <Icon name="orte" class="icon" />
+          <div class="hinweis">Für diesen Ort gibt es keinen passenden Platz woanders.</div>
+        </div>
+        <div v-else class="ziel-liste">
+          <button
+            v-for="z in umzug.ziele" :key="z.id"
+            class="ziel"
+            :class="{ an: umzug.zielId === z.id }"
+            @click="umzug.zielId = z.id"
+          >
+            <Icon :name="z.id === 0 ? 'haus' : typIcon(z.type)" class="icon" />
+            <span class="ziel-text">
+              <span class="ziel-name">{{ z.name }}</span>
+              <span v-if="z.breadcrumb" class="ziel-pfad">{{ z.breadcrumb }}</span>
+            </span>
+          </button>
+        </div>
+
+        <div v-if="umzug.error" class="error-msg">{{ umzug.error }}</div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" @click="umzug.open = false">Abbrechen</button>
+          <button
+            type="button" class="btn btn-primary"
+            :disabled="umzug.zielId === null || umzug.saving"
+            @click="umzugAusfuehren"
+          >{{ umzug.saving ? '…' : 'Verschieben' }}</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="modal.open" class="modal-backdrop" @click.self="modal.open = false">
       <div class="modal-box">
         <h2 class="modal-title">{{ modal.id ? 'Ort bearbeiten' : 'Neuer Lagerort' }}</h2>
@@ -120,6 +161,7 @@ import draggable from 'vuedraggable'
 import {
   getLocationsTree, getLocations,
   createLocation, updateLocation, deleteLocation, reorderLocations,
+  getMoveTargets, relocateLocation,
 } from '../api/index.js'
 import { useMode } from '../composables/useMode.js'
 import { useExpanded } from '../composables/useExpanded.js'
@@ -247,12 +289,41 @@ function onRootDragEnd() {
   doReorder(tree.value.map(n => n.id))
 }
 
+// ── Verschieben an einen anderen Elternort ──────────────────────
+const umzug = ref({ open: false, id: null, name: '', ziele: [], zielId: null, laedt: false, saving: false, error: '' })
+
+async function openRelocate(node) {
+  umzug.value = { open: true, id: node.id, name: node.name, ziele: [], zielId: null, laedt: true, saving: false, error: '' }
+  try {
+    umzug.value.ziele = await getMoveTargets(node.id)
+  } catch (e) {
+    umzug.value.error = e.response?.data?.detail || 'Ziele konnten nicht geladen werden'
+  } finally {
+    umzug.value.laedt = false
+  }
+}
+
+async function umzugAusfuehren() {
+  umzug.value.saving = true
+  umzug.value.error = ''
+  try {
+    await relocateLocation(umzug.value.id, umzug.value.zielId)
+    umzug.value.open = false
+    await load()
+  } catch (e) {
+    umzug.value.error = e.response?.data?.detail || 'Verschieben fehlgeschlagen'
+  } finally {
+    umzug.value.saving = false
+  }
+}
+
 // ── Handlers via provide() an LocationNode weitergeben ───────────
 provide('locHandlers', {
-  onCreate:  openCreate,
-  onEdit:    openEdit,
-  onDelete:  doDelete,
-  onReorder: doReorder,
+  onCreate:   openCreate,
+  onEdit:     openEdit,
+  onDelete:   doDelete,
+  onReorder:  doReorder,
+  onRelocate: openRelocate,
 })
 
 onMounted(load)
@@ -294,14 +365,48 @@ onMounted(load)
 /* Modal */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-  display: flex; align-items: flex-end; z-index: 200;
+  display: flex; align-items: flex-end;
+  /* über der Navigationsleiste (z-index 100), sonst liegt sie darüber */
+  z-index: 200;
 }
 .modal-box {
   background: var(--white); border-radius: var(--radius) var(--radius) 0 0;
-  padding: 24px; width: 100%; max-height: 92vh; overflow-y: auto;
+  padding: 24px; width: 100%;
+  max-height: 92vh; max-height: 92dvh;
+  overflow-y: auto;
+  /* Der Speichern-Knopf lag auf dem Handy unter der Navigationsleiste und
+     der Home-Anzeige. Beides hier unten freihalten. */
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
 }
 .modal-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
+
+.umzug-hinweis { font-size: 15px; color: var(--tinte-blass); margin-bottom: 14px; line-height: 1.4; }
+.ziel-liste { display: flex; flex-direction: column; gap: 7px; max-height: 46vh; overflow-y: auto; }
+.ziel {
+  display: flex; align-items: center; gap: 11px;
+  padding: 12px 13px; min-height: 56px;
+  border: 1.5px solid var(--linie); border-radius: var(--radius-sm);
+  background: transparent; color: var(--tinte);
+  text-align: left; cursor: pointer; width: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.ziel.an { border-color: var(--gebrannt); background: rgba(53,29,8,.08); }
+.ziel .icon { font-size: 21px; color: var(--gebrannt); flex-shrink: 0; }
+.ziel-text { display: flex; flex-direction: column; min-width: 0; }
+.ziel-name { font-weight: 600; font-size: 16px; }
+.ziel-pfad { font-family: var(--schrift-hand); font-size: 14.5px; color: var(--tinte-blass); }
 .coord-row { display: flex; gap: 8px; }
-.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+/* Die Knöpfe kleben unten am Fenster, damit man beim langen Formular nicht
+   erst scrollen muss und sie nie hinter der Navigationsleiste landen. */
+.modal-actions {
+  display: flex; gap: 10px; margin-top: 18px;
+  position: sticky; bottom: calc(-24px - env(safe-area-inset-bottom, 0px));
+  background: var(--white);
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+  margin-bottom: calc(-24px - env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 12px -8px rgba(48, 26, 8, 0.25);
+}
+.modal-actions .btn { flex: 1; }
 .error-msg { color: var(--rot); font-size: 14px; margin-top: 6px; }
 </style>
