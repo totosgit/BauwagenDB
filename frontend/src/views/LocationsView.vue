@@ -42,7 +42,14 @@
 
     <!-- Modal: Lagerort anlegen / bearbeiten -->
     <!-- Verschieben: Ziel auswählen. Das Backend liefert nur Orte, unter
-         denen der Typ erlaubt ist und die nicht im Ort selbst liegen. -->
+         denen der Typ erlaubt ist und die nicht im Ort selbst liegen.
+
+         Teleport an den Body: die Seite (.page) hat selbst z-index 1, und
+         damit zaehlt fuer alles darin dieser eine Wert gegenueber der
+         Navigationsleiste (z-index 100) -- der z-index 200 des Fensters
+         half nichts, die Leiste lag trotzdem darueber und verdeckte die
+         Knoepfe. Ausserhalb der Seite gilt der Wert wieder direkt. -->
+    <Teleport to="body">
     <div v-if="umzug.open" class="modal-backdrop" @click.self="umzug.open = false">
       <div class="modal-box">
         <div class="modal-kopf">
@@ -88,7 +95,9 @@
         </div>
       </div>
     </div>
+    </Teleport>
 
+    <Teleport to="body">
     <div v-if="modal.open" class="modal-backdrop" @click.self="modal.open = false">
       <div class="modal-box">
         <div class="modal-kopf">
@@ -166,6 +175,7 @@
         </form>
       </div>
     </div>
+    </Teleport>
   </div>
 </template>
 
@@ -354,45 +364,40 @@ onMounted(load)
 }
 
 /* Typ-Auswahl */
-.type-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.type-btn {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 10px 14px; border: 2px solid var(--border); border-radius: var(--radius-sm);
-  background: var(--white); cursor: pointer; font-size: 14px; font-weight: 600;
-  min-width: 72px; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
-}
-.type-btn-icon { font-size: 24px; }
-.type-btn.active { border-color: var(--green); background: var(--green-pale); color: var(--green); }
 
-.type-hint {
-  font-size: 13px; color: var(--text-muted);
-  background: var(--cream); border-radius: var(--radius-sm);
-  padding: 8px 12px; margin-bottom: 14px;
-}
-.type-hint-warn { background: var(--rot-blass); color: var(--rot); }
-.type-chip {
-  display: inline-block; margin: 0 3px; padding: 1px 7px;
-  border-radius: 999px; background: var(--green-pale); color: var(--green);
-  font-size: 12px; font-weight: 700;
-}
 
 /* Modal */
 /* Der Speichern-Knopf lag auf dem Handy unter der Navigationsleiste.
    Erster Versuch mit position:sticky und negativem bottom war falsch --
    damit klebt er unterhalb des sichtbaren Bereichs. Jetzt eine feste
    Aufteilung: Kopf oben, Inhalt scrollt, Knöpfe unverrückbar am Fuß. */
+
+</style>
+
+<!-- Nicht scoped: die Fenster haengen per Teleport am Body und lagen
+     damit ausserhalb der Reichweite der scoped-Regeln. -->
+<style>
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);
   display: flex; align-items: flex-end;
   /* über der Navigationsleiste, die bei z-index 100 liegt */
   z-index: 200;
+  /* Begrenzt das Fenster auch dann, wenn der Browser die dvh-Einheit
+     unten nicht kennt -- sonst wächst es über den Bildschirm hinaus und
+     die Knöpfe sind gar nicht mehr erreichbar. Genau das ist passiert. */
+  overflow: hidden;
 }
 .modal-box {
   background: var(--white);
   border-radius: var(--radius) var(--radius) 0 0;
   width: 100%;
-  /* dvh statt vh: auf dem Handy zählt vh die Adressleiste nicht mit,
-     dadurch wurde das Fenster höher als der sichtbare Bereich. */
+  /* Drei Stufen, absichtlich in dieser Reihenfolge:
+     100% greift immer (der Backdrop ist so hoch wie der Bildschirm),
+     88vh lässt oben etwas Luft, 88dvh berücksichtigt zusätzlich die
+     ein- und ausfahrende Adressleiste. Kennt ein Browser eine Einheit
+     nicht, überspringt er nur diese Zeile. */
+  max-height: 100%;
+  max-height: 88vh;
   max-height: 88dvh;
   display: flex; flex-direction: column;
   overflow: hidden;
@@ -408,12 +413,15 @@ onMounted(load)
 }
 .modal-fuss {
   flex-shrink: 0;
+  /* nie zusammenfallen lassen, egal wie lang das Formular ist */
+  min-height: fit-content;
   padding: 12px 22px calc(14px + env(safe-area-inset-bottom, 0px));
   background: var(--white);
   box-shadow: 0 -8px 14px -10px rgba(48, 26, 8, 0.3);
 }
 .modal-title { font-size: 22px; font-weight: 700; }
-
+.modal-actions { display: flex; gap: 10px; }
+.modal-actions .btn { flex: 1; }
 .umzug-hinweis { font-size: 15px; color: var(--tinte-blass); margin-top: 6px; line-height: 1.4; }
 .ziel-liste { display: flex; flex-direction: column; gap: 7px; }
 .ziel {
@@ -429,8 +437,26 @@ onMounted(load)
 .ziel-text { display: flex; flex-direction: column; min-width: 0; }
 .ziel-name { font-weight: 600; font-size: 16px; }
 .ziel-pfad { font-family: var(--schrift-hand); font-size: 14.5px; color: var(--tinte-blass); }
+.type-hint {
+  font-size: 13px; color: var(--text-muted);
+  background: var(--cream); border-radius: var(--radius-sm);
+  padding: 8px 12px; margin-bottom: 14px;
+}
+.type-hint-warn { background: var(--rot-blass); color: var(--rot); }
+.type-chip {
+  display: inline-block; margin: 0 3px; padding: 1px 7px;
+  border-radius: 999px; background: var(--green-pale); color: var(--green);
+  font-size: 12px; font-weight: 700;
+}
+.type-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.type-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 14px; border: 2px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--white); cursor: pointer; font-size: 14px; font-weight: 600;
+  min-width: 72px; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.type-btn.active { border-color: var(--green); background: var(--green-pale); color: var(--green); }
+.type-btn-icon { font-size: 24px; }
 .coord-row { display: flex; gap: 8px; }
-.modal-actions { display: flex; gap: 10px; }
-.modal-actions .btn { flex: 1; }
 .error-msg { color: var(--rot); font-size: 14px; margin-top: 6px; }
 </style>
