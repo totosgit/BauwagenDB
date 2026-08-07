@@ -3,17 +3,24 @@ from sqlalchemy.orm import Session
 from models import Location, Item
 
 
-def alle_breadcrumbs(db: Session) -> dict[int, str]:
+def alle_breadcrumbs(db: Session, modus: str = "lager") -> dict[int, str]:
     """Alle Lagerort-Pfade in einer Abfrage.
 
     Die Einzelvariante get_breadcrumb() laeuft pro Aufruf eine Kette bis zur
     Wurzel. Bei einer Liste mit vielen Gegenstaenden waren das schnell
     hunderte Abfragen -- messbar der langsamste Endpunkt der Anwendung.
+
+    modus: unter dem Jahr zaehlt parent_jahr_id, wo gesetzt. Dadurch
+    wandern Gegenstaende automatisch mit ihrer Kiste, ohne dass an jedem
+    einzelnen etwas geaendert werden muesste.
     """
-    orte = {
-        o.id: (o.name, o.parent_id)
-        for o in db.query(Location.id, Location.name, Location.parent_id).all()
-    }
+    zeilen = db.query(
+        Location.id, Location.name, Location.parent_id, Location.parent_jahr_id
+    ).all()
+    if modus == "jahr":
+        orte = {o.id: (o.name, o.parent_jahr_id if o.parent_jahr_id else o.parent_id) for o in zeilen}
+    else:
+        orte = {o.id: (o.name, o.parent_id) for o in zeilen}
     fertig: dict[int, str] = {}
 
     def pfad(oid: int | None) -> str:
@@ -32,7 +39,7 @@ def alle_breadcrumbs(db: Session) -> dict[int, str]:
     return fertig
 
 
-def get_breadcrumb(db: Session, location_id: int | None) -> str:
+def get_breadcrumb(db: Session, location_id: int | None, modus: str = "lager") -> str:
     if location_id is None:
         return ""
     parts = []
@@ -44,7 +51,10 @@ def get_breadcrumb(db: Session, location_id: int | None) -> str:
         if loc is None:
             break
         parts.append(loc.name)
-        current_id = loc.parent_id
+        if modus == "jahr" and loc.parent_jahr_id:
+            current_id = loc.parent_jahr_id
+        else:
+            current_id = loc.parent_id
     parts.reverse()
     return " › ".join(parts)
 
@@ -63,9 +73,11 @@ def build_location_response(loc: Location, db: Session) -> dict:
         "coordinate_y": loc.coordinate_y,
         "coordinate_z": loc.coordinate_z,
         "parent_id": loc.parent_id,
+        "parent_jahr_id": loc.parent_jahr_id,
         "created_at": loc.created_at,
         "item_count": item_count,
         "breadcrumb": get_breadcrumb(db, loc.id),
+        "breadcrumb_jahr": get_breadcrumb(db, loc.id, "jahr"),
     }
 
 

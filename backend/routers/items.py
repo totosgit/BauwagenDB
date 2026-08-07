@@ -15,13 +15,24 @@ router = APIRouter(prefix="/items", tags=["items"])
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
-def item_to_response(item: Item, db: Session, pfade: dict[int, str] | None = None) -> dict:
-    """pfade = vorab geladene Lagerort-Pfade. Ohne sie wird pro Gegenstand
-    einzeln aufgeloest -- fuer Listen immer die Sammelvariante nutzen."""
-    def pfad(oid):
-        if pfade is not None:
-            return pfade.get(oid, "")
-        return get_breadcrumb(db, oid)
+def item_to_response(
+    item: Item,
+    db: Session,
+    pfade: dict[int, str] | None = None,
+    pfade_jahr: dict[int, str] | None = None,
+) -> dict:
+    """pfade / pfade_jahr = vorab geladene Lagerort-Pfade je Modus. Ohne sie
+    wird pro Gegenstand einzeln aufgeloest -- fuer Listen immer die
+    Sammelvariante nutzen.
+
+    Zwei Saetze, weil eine Kiste unter dem Jahr woanders stehen kann und
+    der Pfad dann anders lautet, obwohl der Gegenstand in derselben Kiste
+    liegt."""
+    def pfad(oid, jahr=False):
+        tabelle = pfade_jahr if jahr else pfade
+        if tabelle is not None:
+            return tabelle.get(oid, "")
+        return get_breadcrumb(db, oid, "jahr" if jahr else "lager")
 
     return {
         "id": item.id,
@@ -41,7 +52,7 @@ def item_to_response(item: Item, db: Session, pfade: dict[int, str] | None = Non
         "created_at": item.created_at,
         "updated_at": item.updated_at,
         "breadcrumb_lager": pfad(item.location_lager_id),
-        "breadcrumb_jahr": pfad(item.location_jahr_id),
+        "breadcrumb_jahr": pfad(item.location_jahr_id, jahr=True),
     }
 
 
@@ -57,8 +68,9 @@ def list_items(
     if mode:
         q = q.filter(Item.storage_mode.in_([mode, "both"]))
     items = q.order_by(Item.name).all()
-    pfade = alle_breadcrumbs(db)
-    return [item_to_response(i, db, pfade) for i in items]
+    pfade = alle_breadcrumbs(db, "lager")
+    pfade_jahr = alle_breadcrumbs(db, "jahr")
+    return [item_to_response(i, db, pfade, pfade_jahr) for i in items]
 
 
 @router.get("/categories", response_model=list[str])

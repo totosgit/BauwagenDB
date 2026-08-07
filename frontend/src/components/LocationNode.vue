@@ -23,6 +23,10 @@
           <div class="loc-meta">
             <span class="type-badge">{{ typLabel(node.type) }}</span>
             <span v-if="node.item_count" class="meta-pill">{{ node.item_count }} Dinge</span>
+            <!-- Steht die Kiste unter dem Jahr woanders, gehört das sichtbar -->
+            <span v-if="node.parent_jahr_id" class="meta-pill jahr" :title="node.breadcrumb_jahr">
+              Jahr: {{ kurzerPfad(node.breadcrumb_jahr) }}
+            </span>
             <span v-if="node.children?.length" class="meta-pill meta-children">
               {{ node.children.length }}<Icon :name="expanded ? 'ab' : 'weiter'" class="icon" />
             </span>
@@ -90,6 +94,12 @@ const VALID_CHILDREN = {
   wand:      [],
 }
 
+/** Nur die letzten beiden Stationen -- die Zeile ist schmal. */
+function kurzerPfad(pfad) {
+  const teile = (pfad || '').split('›').map(t => t.trim()).filter(Boolean)
+  return teile.slice(-2).join(' › ') || '—'
+}
+
 const canHaveChildren = computed(
   () => (VALID_CHILDREN[props.node.type] ?? []).length > 0
 )
@@ -154,6 +164,11 @@ function onDragEnd(siblings) {
   border-radius: 999px; background: var(--cream); color: var(--text-muted);
 }
 .meta-children { color: var(--green); background: var(--green-pale); }
+.meta-pill.jahr {
+  color: var(--gebrannt); border: 1px solid var(--linie);
+  background: transparent; max-width: 190px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
 
 /* Aktionen */
 .loc-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }

@@ -39,6 +39,12 @@
         <input ref="galerieEingabe" type="file" accept="image/*"
                style="display:none" @change="fotoGewaehlt" />
         <div v-if="fotoFehler" class="error-msg" style="margin-top:8px">{{ fotoFehler }}</div>
+        <!-- Ohne Rückmeldung sieht man bei einem Handyfoto über Mobilfunk
+             sekundenlang gar nichts und tippt womöglich nochmal. -->
+        <div v-if="uploadStand !== null" class="ladebalken-halter">
+          <div class="ladebalken"><span :style="{ width: uploadStand + '%' }" /></div>
+          <span class="ladetext">{{ uploadStand < 100 ? `Foto wird geladen … ${uploadStand} %` : 'Foto übertragen' }}</span>
+        </div>
       </div>
 
       <!-- Basis-Infos -->
@@ -115,7 +121,22 @@
         <div class="loc-card-header">
           <span class="loc-card-title"><Icon name="haus" class="icon" />Unter dem Jahr</span>
         </div>
-        <div style="margin-top: 12px;">
+
+        <!-- Der häufige Fall: die Sache liegt das ganze Jahr am selben
+             Platz. Dann muss man den Ort nicht zweimal heraussuchen. -->
+        <div class="aufgebaut-row" @click="gleicherOrtUmschalten">
+          <div class="aufgebaut-check" :class="{ active: gleicherOrt }">
+            <Icon v-if="gleicherOrt" name="haken" class="icon" />
+          </div>
+          <div>
+            <div class="aufgebaut-label">Gleicher Ort wie auf dem Lager</div>
+            <div class="aufgebaut-hint">
+              {{ form.aufgebaut ? 'geht nicht, solange „aufgebaut" gesetzt ist' : 'liegt ganzjährig am selben Platz' }}
+            </div>
+          </div>
+        </div>
+
+        <div v-if="!gleicherOrt" style="margin-top: 12px;">
           <LocationWizard v-model="form.location_jahr_id" :locations="allLocations" />
         </div>
       </div>
@@ -168,7 +189,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getItem, createItem, updateItem, getLocations,
@@ -205,9 +226,25 @@ const gewaehlteDatei = ref(null)     // wird erst nach dem Speichern hochgeladen
 const vorschau = ref('')             // Data-URL oder vorhandener Bildpfad
 const fotoFehler = ref('')
 const fotoGeloescht = ref(false)
+const uploadStand = ref(null)   // null = kein Upload aktiv
 
 // ── Tags als Marken statt als Kommatext ──
 const tagEingabe = ref('')
+
+// Haken "gleicher Ort": koppelt den Jahr-Ort an den Lager-Ort. Aufgebautes
+// hat bewusst keinen Lager-Ort, deshalb ist die Kopplung dort sinnlos.
+const gleicherOrt = ref(false)
+function gleicherOrtUmschalten() {
+  if (form.value.aufgebaut) return
+  gleicherOrt.value = !gleicherOrt.value
+  if (gleicherOrt.value) form.value.location_jahr_id = form.value.location_lager_id
+}
+watch(() => form.value.location_lager_id, (neu) => {
+  if (gleicherOrt.value) form.value.location_jahr_id = neu
+})
+watch(() => form.value.aufgebaut, (an) => {
+  if (an) gleicherOrt.value = false
+})
 const gewaehlteTags = computed(() =>
   (form.value.tags || '').split(',').map(t => t.trim()).filter(Boolean)
 )
@@ -289,6 +326,9 @@ async function load() {
     if (isEdit) {
       const item = await getItem(id)
       form.value = { ...item, aufgebaut_notiz: item.aufgebaut_notiz || '', tags: item.tags || '' }
+      gleicherOrt.value = !!item.location_lager_id
+        && item.location_lager_id === item.location_jahr_id
+        && !item.aufgebaut
       if (item.image_path) vorschau.value = '/images/' + item.image_path
     }
   } finally {
@@ -306,18 +346,24 @@ async function save() {
     if (!payload.tags) payload.tags = null
     if (!payload.aufgebaut_notiz) payload.aufgebaut_notiz = null
     if (payload.aufgebaut) payload.location_lager_id = null
+    if (gleicherOrt.value && !payload.aufgebaut) {
+      payload.location_jahr_id = payload.location_lager_id
+    }
 
     const saved = isEdit ? await updateItem(id, payload) : await createItem(payload)
 
     // Das Bild braucht die Nummer des Gegenstands, geht also erst jetzt.
     if (gewaehlteDatei.value) {
       saveSchritt.value = 'Foto wird geladen …'
+      uploadStand.value = 0
       try {
-        await uploadImage(saved.id, gewaehlteDatei.value)
+        await uploadImage(saved.id, gewaehlteDatei.value, (p) => { uploadStand.value = p })
       } catch {
         // Der Gegenstand ist gespeichert -- das soll ein Bildfehler nicht
         // zunichte machen. Nachtragen geht in der Detailansicht.
         error.value = 'Gespeichert, aber das Foto konnte nicht geladen werden.'
+      } finally {
+        uploadStand.value = null
       }
     } else if (isEdit && fotoGeloescht.value) {
       try { await deleteImage(saved.id) } catch { /* nicht kritisch */ }
@@ -370,6 +416,24 @@ onMounted(load)
 .foto-vorschau .gross { font-size: 40px; opacity: 0.65; }
 .foto-hinweis { font-family: var(--schrift-hand); font-size: 18px; }
 .foto-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.ladebalken-halter { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
+.ladebalken {
+  height: 8px; border-radius: 999px;
+  background: var(--blatt-tief);
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(53,29,8,.18);
+}
+.ladebalken span {
+  display: block; height: 100%;
+  background: var(--gebrannt);
+  transition: width 0.2s ease;
+}
+.ladetext {
+  font-family: var(--schrift-stempel);
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--tinte-blass);
+}
 .foto-knoepfe .btn { flex: 1; min-width: 130px; }
 
 /* ── Vorschläge für Kategorie und Tags ── */

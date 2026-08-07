@@ -25,6 +25,43 @@
       <Icon name="weiter" class="icon" />
     </router-link>
 
+    <!-- Lagerzeitraum: bestimmt, welcher Modus beim Öffnen voreingestellt
+         ist. Umschalten von Hand bleibt jederzeit möglich. -->
+    <div class="card zeitraum">
+      <div class="ab-kopf">
+        <Icon name="zelt" class="icon gross" />
+        <span class="ov-text">
+          <span class="ov-titel">Wann ist Lager?</span>
+          <span class="ov-unter">
+            <template v-if="zeitraum?.laeuft_gerade">Läuft gerade — die App öffnet im Lagerbetrieb.</template>
+            <template v-else-if="zeitraum?.start">Nicht aktiv — die App öffnet im Jahresbetrieb.</template>
+            <template v-else>Noch kein Zeitraum eingetragen.</template>
+          </span>
+        </span>
+      </div>
+
+      <div class="zeitraum-felder">
+        <div class="form-group" style="flex:1">
+          <label>Beginn</label>
+          <input v-model="zStart" type="date" />
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Ende</label>
+          <input v-model="zEnde" type="date" />
+        </div>
+      </div>
+      <div class="ab-knoepfe">
+        <button class="btn btn-primary" :disabled="zSpeichert" @click="zeitraumSpeichern">
+          <Icon name="speichern" class="icon" />{{ zSpeichert ? '…' : 'Übernehmen' }}
+        </button>
+        <button v-if="zeitraum?.start" class="btn btn-secondary" @click="zeitraumLeeren">
+          Zeitraum löschen
+        </button>
+      </div>
+      <div v-if="zMeldung" class="hint ok">{{ zMeldung }}</div>
+      <div v-if="zFehler" class="hint err">{{ zFehler }}</div>
+    </div>
+
     <!-- Abrechnung: erst sichern, dann leeren. Auf der Strichliste selbst
          sieht jeder nur seinen eigenen Zettel -- die Gesamtübersicht ist
          genau dieses PDF. -->
@@ -181,6 +218,7 @@ import {
   getGroups, createGroup, deleteGroup,
   getAllSummaries, getDrinks, resetAllTallies,
   getCategoryStats, renameCategory, deleteCategory,
+  getLagerZeitraum, setLagerZeitraum,
 } from '../api/index.js'
 import { useAuth } from '../composables/useAuth.js'
 import Icon from '../components/Icon.vue'
@@ -202,6 +240,45 @@ const strichSumme = ref(null)      // null = noch nicht geladen
 const exportiert = ref(false)
 const leert = ref(false)
 const abMeldung = ref('')
+
+// ── Lagerzeitraum ──
+const zeitraum = ref(null)
+const zStart = ref('')
+const zEnde = ref('')
+const zSpeichert = ref(false)
+const zMeldung = ref('')
+const zFehler = ref('')
+
+async function zeitraumLaden() {
+  try {
+    zeitraum.value = await getLagerZeitraum()
+    zStart.value = zeitraum.value.start || ''
+    zEnde.value = zeitraum.value.ende || ''
+  } catch { /* nicht kritisch */ }
+}
+
+async function zeitraumSpeichern() {
+  zSpeichert.value = true
+  zMeldung.value = ''
+  zFehler.value = ''
+  try {
+    zeitraum.value = await setLagerZeitraum(zStart.value || null, zEnde.value || null)
+    zMeldung.value = zeitraum.value.laeuft_gerade
+      ? 'Gespeichert. Das Lager läuft — die App öffnet im Lagerbetrieb.'
+      : 'Gespeichert. Die App öffnet im Jahresbetrieb.'
+  } catch (e) {
+    zFehler.value = e.response?.data?.detail || 'Speichern fehlgeschlagen'
+  } finally {
+    zSpeichert.value = false
+  }
+}
+
+async function zeitraumLeeren() {
+  if (!confirm('Zeitraum löschen? Der Modus richtet sich dann nicht mehr nach dem Datum.')) return
+  zStart.value = ''
+  zEnde.value = ''
+  await zeitraumSpeichern()
+}
 
 // ── Kategorien ──
 const kategorien = ref([])
@@ -254,6 +331,7 @@ async function load() {
         getPendingUsers(), getUsers(), getGroups(), getAllSummaries(), getDrinks(),
         getCategoryStats(),
       ])
+    await zeitraumLaden()
     strichSumme.value = summaries.value.reduce((n, s) => n + s.grand_total, 0)
   } finally {
     loading.value = false
@@ -375,7 +453,11 @@ onMounted(load)
 .ov-unter { font-size: 14px; color: var(--tinte-blass); line-height: 1.3; }
 
 /* Abrechnung: sichern, dann leeren */
-.abrechnung { margin-bottom: 16px; }
+.abrechnung, .zeitraum { margin-bottom: 16px; }
+.zeitraum-felder { display: flex; gap: 12px; margin-top: 14px; }
+.zeitraum-felder input[type="date"] {
+  font-family: var(--schrift-text); font-size: 16px;
+}
 .ab-kopf { display: flex; align-items: center; gap: 14px; }
 .ab-kopf .gross { font-size: 30px; color: var(--gebrannt); flex-shrink: 0; }
 .ab-knoepfe { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 14px; }

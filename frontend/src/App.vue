@@ -69,7 +69,7 @@ import { getPendingUsers } from './api/index.js'
 import Icon from './components/Icon.vue'
 
 const route = useRoute()
-const { mode, setMode } = useMode()
+const { mode, setMode, modusAusZeitraum } = useMode()
 const { user, isAdmin } = useAuth()
 
 const pendingCount = ref(0)
@@ -79,6 +79,8 @@ function netzStatus() { online.value = navigator.onLine }
 onMounted(() => {
   window.addEventListener('online', netzStatus)
   window.addEventListener('offline', netzStatus)
+  // Steht ein Lagerzeitraum, richtet sich der Modus danach
+  modusAusZeitraum()
 })
 onUnmounted(() => {
   window.removeEventListener('online', netzStatus)

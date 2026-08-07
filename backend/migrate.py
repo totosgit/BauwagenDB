@@ -59,4 +59,9 @@ def run_migrations(engine: Engine) -> list[str]:
                 conn.execute(text(f"ALTER TABLE {tabelle} ADD COLUMN author VARCHAR(100)"))
                 done.append(f"{tabelle}.author ergaenzt")
 
+        # Lagerorte koennen unter dem Jahr woanders stehen
+        if "locations" in tables and "parent_jahr_id" not in _columns(inspector, "locations"):
+            conn.execute(text("ALTER TABLE locations ADD COLUMN parent_jahr_id INTEGER"))
+            done.append("locations.parent_jahr_id ergaenzt")
+
     return done

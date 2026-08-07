@@ -6,7 +6,9 @@ from database import get_db
 from models import ShoppingItem, User
 from schemas import ShoppingItemCreate, ShoppingItemUpdate, ShoppingItemResponse
 
-URGENCY_ORDER = {"dringend": 0, "hoch": 1, "mittel": 2, "niedrig": 3}
+# "naechstes_lager" ganz hinten: was bis zum naechsten Lager Zeit hat,
+# draengt nicht. Waehrend des Lagers wird es ohnehin ausgeblendet.
+URGENCY_ORDER = {"dringend": 0, "hoch": 1, "mittel": 2, "niedrig": 3, "naechstes_lager": 4}
 
 router = APIRouter(prefix="/shopping", tags=["shopping"])
 
@@ -34,8 +36,17 @@ def _to_response(item: ShoppingItem) -> dict:
 
 
 @router.get("/", response_model=list[ShoppingItemResponse])
-def list_shopping(db: Session = Depends(get_db), _: User = Depends(current_user)):
-    items = db.query(ShoppingItem).all()
+def list_shopping(
+    mode: str | None = None,
+    db: Session = Depends(get_db),
+    _: User = Depends(current_user),
+):
+    """mode=lager blendet aus, was erst bis zum naechsten Lager gebraucht
+    wird -- waehrend des Lagers ist das nur Ablenkung."""
+    q = db.query(ShoppingItem)
+    if mode == "lager":
+        q = q.filter(ShoppingItem.urgency != "naechstes_lager")
+    items = q.all()
     items.sort(key=lambda x: (x.erledigt, URGENCY_ORDER.get(x.urgency, 99), x.created_at))
     return [_to_response(i) for i in items]
 

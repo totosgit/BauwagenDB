@@ -54,8 +54,26 @@
       <div class="modal-box">
         <div class="modal-kopf">
           <h2 class="modal-title">„{{ umzug.name }}" verschieben</h2>
+          <!-- Eine Kiste kann unter dem Jahr woanders stehen. Gegenstände
+               darin ziehen automatisch mit -- sie bleiben in der Kiste. -->
+          <div class="umzug-modus">
+            <button
+              class="um-seite" :class="{ an: umzug.modus === 'lager' }"
+              @click="umzugModus('lager')"
+            ><Icon name="zelt" class="icon" />Auf dem Lager</button>
+            <button
+              class="um-seite" :class="{ an: umzug.modus === 'jahr' }"
+              @click="umzugModus('jahr')"
+            ><Icon name="haus" class="icon" />Unter dem Jahr</button>
+          </div>
           <p class="umzug-hinweis">
-            Wohin soll der Ort samt Inhalt? Die Gegenstände ziehen automatisch mit.
+            <template v-if="umzug.modus === 'jahr'">
+              Wo steht die Kiste außerhalb des Lagers? Ohne Angabe steht sie
+              ganzjährig am selben Platz.
+            </template>
+            <template v-else>
+              Wohin auf dem Lager? Die Gegenstände ziehen automatisch mit.
+            </template>
           </p>
         </div>
 
@@ -66,6 +84,17 @@
           <div class="hinweis">Für diesen Ort gibt es keinen passenden Platz woanders.</div>
         </div>
         <div v-else class="ziel-liste">
+          <button
+            v-if="umzug.modus === 'jahr'"
+            class="ziel" :class="{ an: umzug.zielId === -1 }"
+            @click="umzug.zielId = -1"
+          >
+            <Icon name="haken" class="icon" />
+            <span class="ziel-text">
+              <span class="ziel-name">Wie auf dem Lager</span>
+              <span class="ziel-pfad">steht ganzjährig am selben Platz</span>
+            </span>
+          </button>
           <button
             v-for="z in umzug.ziele" :key="z.id"
             class="ziel"
@@ -317,9 +346,18 @@ function onRootDragEnd() {
 const umzug = ref({ open: false, id: null, name: '', ziele: [], zielId: null, laedt: false, saving: false, error: '' })
 
 async function openRelocate(node) {
-  umzug.value = { open: true, id: node.id, name: node.name, ziele: [], zielId: null, laedt: true, saving: false, error: '' }
+  umzug.value = {
+    open: true, id: node.id, name: node.name, modus: 'lager',
+    ziele: [], zielId: null, laedt: true, saving: false, error: '',
+  }
+  await zieleLaden()
+}
+
+async function zieleLaden() {
+  umzug.value.laedt = true
+  umzug.value.error = ''
   try {
-    umzug.value.ziele = await getMoveTargets(node.id)
+    umzug.value.ziele = await getMoveTargets(umzug.value.id)
   } catch (e) {
     umzug.value.error = e.response?.data?.detail || 'Ziele konnten nicht geladen werden'
   } finally {
@@ -327,11 +365,22 @@ async function openRelocate(node) {
   }
 }
 
+function umzugModus(m) {
+  umzug.value.modus = m
+  umzug.value.zielId = null
+}
+
 async function umzugAusfuehren() {
   umzug.value.saving = true
   umzug.value.error = ''
   try {
-    await relocateLocation(umzug.value.id, umzug.value.zielId)
+    if (umzug.value.modus === 'jahr') {
+      // -1 = wie auf dem Lager, also den zweiten Ort wieder entfernen
+      const ziel = umzug.value.zielId === -1 ? null : umzug.value.zielId
+      await updateLocation(umzug.value.id, { parent_jahr_id: ziel })
+    } else {
+      await relocateLocation(umzug.value.id, umzug.value.zielId)
+    }
     umzug.value.open = false
     await load()
   } catch (e) {
@@ -422,7 +471,19 @@ onMounted(load)
 .modal-title { font-size: 22px; font-weight: 700; }
 .modal-actions { display: flex; gap: 10px; }
 .modal-actions .btn { flex: 1; }
-.umzug-hinweis { font-size: 15px; color: var(--tinte-blass); margin-top: 6px; line-height: 1.4; }
+.umzug-hinweis { font-size: 15px; color: var(--tinte-blass); margin-top: 10px; line-height: 1.4; }
+.umzug-modus { display: flex; gap: 7px; margin-top: 12px; }
+.um-seite {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 10px 8px; min-height: 44px;
+  border: 1.5px solid var(--linie); border-radius: var(--radius-sm);
+  background: transparent; color: var(--tinte-blass);
+  font-family: var(--schrift-stempel);
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.um-seite.an { color: var(--gebrannt); border-color: var(--gebrannt); background: rgba(53,29,8,.07); }
+.um-seite .icon { font-size: 15px; }
 .ziel-liste { display: flex; flex-direction: column; gap: 7px; }
 .ziel {
   display: flex; align-items: center; gap: 11px;

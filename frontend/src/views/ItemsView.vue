@@ -47,7 +47,7 @@
     <div v-if="loading" class="loading">{{ suchModus ? 'Suche läuft …' : 'Laden …' }}</div>
 
     <template v-else>
-      <div v-if="!items.length" class="empty">
+      <div v-if="!items.length && !orte.length" class="empty">
         <Icon :name="suchModus ? 'suche' : 'dinge'" class="icon" />
         <div class="hinweis">
           {{ suchModus ? `Nichts gefunden für „${query}"` : 'Noch nichts aufgenommen' }}
@@ -58,8 +58,30 @@
       </div>
 
       <template v-else>
+        <!-- Kisten zuerst: ganze Kisten werden ausgeliehen, und wer nach
+             "Bastelkiste" sucht, meint meist die Kiste, nicht den Inhalt. -->
+        <template v-if="orte.length">
+          <div class="section-label">
+            {{ orte.length }} {{ orte.length === 1 ? 'Lagerort' : 'Lagerorte' }}
+          </div>
+          <div class="ort-treffer">
+            <button
+              v-for="o in orte" :key="o.id"
+              class="ort-karte"
+              @click="ortOeffnen(o)"
+            >
+              <Icon :name="typIcon(o.type)" class="icon" />
+              <span class="ort-text">
+                <span class="ort-name">{{ o.name }}</span>
+                <span v-if="o.breadcrumb" class="ort-pfad">{{ o.breadcrumb }}</span>
+              </span>
+              <span class="ort-anzahl">{{ o.item_count }}</span>
+            </button>
+          </div>
+        </template>
+
         <div v-if="suchModus" class="section-label">
-          {{ items.length }} {{ items.length === 1 ? 'Treffer' : 'Treffer' }}
+          {{ items.length }} {{ items.length === 1 ? 'Gegenstand' : 'Gegenstände' }}
         </div>
         <div class="polaroids">
           <Polaroid
@@ -86,10 +108,12 @@ import { getItems, getCategories, searchAll } from '../api/index.js'
 import { useMode } from '../composables/useMode.js'
 import Icon from '../components/Icon.vue'
 import Polaroid from '../components/Polaroid.vue'
+import { typIcon } from '../utils/orttypen.js'
 
 const { mode } = useMode()
 
 const items = ref([])
+const orte = ref([])
 const categories = ref([])
 const activeCategory = ref(null)
 const loading = ref(false)
@@ -109,7 +133,9 @@ async function load() {
     if (suchModus.value) {
       const daten = await searchAll(query.value.trim(), mode.value)
       items.value = daten.items || []
+      orte.value = daten.orte || []
     } else {
+      orte.value = []
       const params = { mode: mode.value }
       if (activeCategory.value) params.category = activeCategory.value
       items.value = await getItems(params)
@@ -149,6 +175,12 @@ function toggleVoice() {
   recognition.onerror = () => { listening.value = false }
   recognition.onend = () => { listening.value = false }
   recognition.start()
+}
+
+/** Zeigt, was in dieser Kiste liegt -- als Suche nach dem Ortsnamen. */
+function ortOeffnen(o) {
+  query.value = o.name
+  load()
 }
 
 function activeBreadcrumb(item) {
@@ -201,6 +233,31 @@ onMounted(async () => {
 @keyframes pochen { 0%, 100% { opacity: 1 } 50% { opacity: 0.55 } }
 
 .filter-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 6px; }
+
+/* Gefundene Lagerorte: schlichte Zeilen, klar abgesetzt von den Abzügen */
+.ort-treffer { display: flex; flex-direction: column; gap: 7px; }
+.ort-karte {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 13px; min-height: 54px; width: 100%;
+  background: var(--blatt);
+  border: none; border-radius: var(--radius-sm);
+  box-shadow: var(--schatten);
+  text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ort-karte .icon { font-size: 22px; color: var(--gebrannt); flex-shrink: 0; }
+.ort-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.ort-name { font-weight: 600; font-size: 16px; }
+.ort-pfad {
+  font-family: var(--schrift-hand); font-size: 14.5px;
+  color: var(--tinte-blass); overflow-wrap: anywhere;
+}
+.ort-anzahl {
+  font-family: var(--schrift-stempel); font-size: 11px;
+  color: var(--tinte-blass); flex-shrink: 0;
+  border: 1px solid var(--linie); border-radius: var(--radius-sm);
+  padding: 3px 8px;
+}
 
 /* Pinnwand. auto-fill statt fester Spaltenzahl: auf dem Handy zwei, auf
    breiteren Geräten mehr, ohne dass die Abzüge riesig werden. */

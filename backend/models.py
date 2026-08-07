@@ -25,12 +25,17 @@ class Location(Base):
     coordinate_y = Column(Float, nullable=True)
     coordinate_z = Column(Float, nullable=True)
     parent_id = Column(Integer, ForeignKey("locations.id", ondelete="SET NULL"), nullable=True)
+    # Eine Kiste kann unter dem Jahr woanders stehen als auf dem Lager.
+    # Leer = sie steht immer am selben Platz. Gegenstaende darin ziehen
+    # automatisch mit: sie bleiben in der Kiste, nur die Kiste wandert.
+    parent_jahr_id = Column(Integer, ForeignKey("locations.id", ondelete="SET NULL"), nullable=True)
     sort_order = Column(Integer, default=0, server_default="0")
     created_at = Column(DateTime, default=now)
 
-    parent = relationship("Location", remote_side=[id], back_populates="children")
+    parent = relationship("Location", remote_side=[id], foreign_keys=[parent_id], back_populates="children")
     children = relationship(
         "Location", back_populates="parent", cascade="all, delete-orphan",
+        foreign_keys=[parent_id],
         order_by="Location.sort_order, Location.id",
     )
 
@@ -183,3 +188,16 @@ class Tally(Base):
 
     user = relationship("User", back_populates="tallies")
     drink = relationship("Drink", back_populates="tallies")
+
+
+class Einstellung(Base):
+    """Anwendungsweite Einstellungen als Schluessel-Wert-Paare.
+
+    Bewusst generisch statt einer Spalte je Einstellung: es sind wenige,
+    sie aendern sich selten, und so braucht jede neue keine Migration.
+    """
+    __tablename__ = "einstellungen"
+
+    schluessel = Column(String(50), primary_key=True)
+    wert = Column(Text, nullable=True)
+    geaendert_am = Column(DateTime, default=now, onupdate=now)

@@ -12,7 +12,7 @@ from database import AsyncSessionLocal, engine, get_db, IMAGES_DIR, Base
 import models  # noqa: F401 — ensures models are registered
 from migrate import run_migrations
 from models import User
-from routers import auth, items, locations, search, drinks, tally, notes, shopping, users, groups
+from routers import auth, items, locations, search, drinks, tally, notes, shopping, users, groups, einstellungen
 
 log = logging.getLogger("uvicorn.error")
 
@@ -130,6 +130,7 @@ async def auth_middleware(request: Request, call_next):
 app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(groups.router, prefix="/api")
+app.include_router(einstellungen.router, prefix="/api")
 app.include_router(items.router, prefix="/api")
 app.include_router(locations.router, prefix="/api")
 app.include_router(search.router, prefix="/api")

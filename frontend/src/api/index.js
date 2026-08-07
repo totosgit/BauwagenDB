@@ -50,10 +50,20 @@ export const getItem = (id) => api.get(`/items/${id}`).then(r => r.data)
 export const createItem = (data) => api.post('/items/', data).then(r => r.data)
 export const updateItem = (id, data) => api.put(`/items/${id}`, data).then(r => r.data)
 export const deleteItem = (id) => api.delete(`/items/${id}`)
-export const uploadImage = (id, file) => {
+/**
+ * @param onProgress Rückmeldung 0..100 während der Übertragung. Ohne sie
+ *   sieht man bei einem Handyfoto über Mobilfunk sekundenlang gar nichts.
+ */
+export const uploadImage = (id, file, onProgress) => {
   const form = new FormData()
   form.append('file', file)
-  return api.post(`/items/${id}/image`, form).then(r => r.data)
+  return api.post(`/items/${id}/image`, form, {
+    onUploadProgress: (e) => {
+      if (!onProgress) return
+      // total fehlt bei manchen Servern -- dann lieber nichts melden als raten
+      if (e.total) onProgress(Math.round((e.loaded / e.total) * 100))
+    },
+  }).then(r => r.data)
 }
 export const deleteImage = (id) => api.delete(`/items/${id}/image`).then(r => r.data)
 export const getCategories = () => api.get('/items/categories').then(r => r.data)
@@ -88,7 +98,8 @@ export const createNote = (data) => api.post('/notes/', data).then(r => r.data)
 export const deleteNote = (id) => api.delete(`/notes/${id}`)
 
 // --- Einkaufsliste ---
-export const getShoppingItems = () => api.get('/shopping/').then(r => r.data)
+// mode=lager blendet aus, was erst bis zum nächsten Lager gebraucht wird
+export const getShoppingItems = (mode) => api.get('/shopping/', { params: mode ? { mode } : {} }).then(r => r.data)
 export const createShoppingItem = (data) => api.post('/shopping/', data).then(r => r.data)
 export const updateShoppingItem = (id, data) => api.patch(`/shopping/${id}`, data).then(r => r.data)
 export const deleteShoppingItem = (id) => api.delete(`/shopping/${id}`)
@@ -106,3 +117,8 @@ export const getMoveTargets = (id) => api.get(`/locations/${id}/verschiebe-ziele
 export const relocateLocation = (id, ziel_id) =>
   api.patch(`/locations/${id}/verschiebe`, null, { params: { ziel_id } }).then(r => r.data)
 export const reorderLocations = (orderedIds) => api.post('/locations/reorder', orderedIds)
+
+// --- Einstellungen ---
+export const getLagerZeitraum = () => api.get('/einstellungen/lager-zeitraum').then(r => r.data)
+export const setLagerZeitraum = (start, ende) =>
+  api.put('/einstellungen/lager-zeitraum', { start, ende }).then(r => r.data)

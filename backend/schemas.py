@@ -1,7 +1,7 @@
 import uuid
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
-from datetime import datetime
+from datetime import date, datetime
 
 
 class LocationBase(BaseModel):
@@ -13,6 +13,8 @@ class LocationBase(BaseModel):
     coordinate_y: Optional[float] = None
     coordinate_z: Optional[float] = None
     parent_id: Optional[int] = None
+    # Leer = der Ort steht in beiden Modi am selben Platz
+    parent_jahr_id: Optional[int] = None
 
 
 class LocationCreate(LocationBase):
@@ -28,6 +30,7 @@ class LocationUpdate(BaseModel):
     coordinate_y: Optional[float] = None
     coordinate_z: Optional[float] = None
     parent_id: Optional[int] = None
+    parent_jahr_id: Optional[int] = None
 
 
 class LocationResponse(LocationBase):
@@ -35,6 +38,7 @@ class LocationResponse(LocationBase):
     created_at: datetime
     item_count: int = 0
     breadcrumb: str = ""
+    breadcrumb_jahr: str = ""
 
     model_config = {"from_attributes": True}
 
@@ -287,3 +291,19 @@ class NoteResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# --- Einstellungen ---
+
+class LagerZeitraum(BaseModel):
+    """Wann findet das Zeltlager statt? Bestimmt den Standardmodus."""
+    start: Optional[date] = None
+    ende: Optional[date] = None
+    laeuft_gerade: bool = False
+    empfohlener_modus: str = "jahr"
+    heute: date
+
+
+class LagerZeitraumUpdate(BaseModel):
+    start: Optional[date] = None
+    ende: Optional[date] = None

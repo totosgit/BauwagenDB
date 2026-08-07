@@ -52,6 +52,10 @@
         <div class="hinweis">Nichts zu besorgen</div>
       </div>
 
+      <div v-if="mode === 'lager'" class="modus-hinweis">
+        Einträge „bis nächstes Lager" sind gerade ausgeblendet.
+      </div>
+
       <!-- Der Einkaufszettel selbst -->
       <div v-if="offene.length" class="zettel zettel-schief geheftet">
         <div class="zettel-kopf">
@@ -99,6 +103,7 @@
               <div v-if="item.notes" class="zusatz">{{ item.notes }}</div>
             </div>
             <span v-if="item.urgency === 'dringend'" class="rotstift">!</span>
+            <span v-else-if="item.urgency === 'naechstes_lager'" class="lager-marke">nächstes Lager</span>
             <button class="stift" @click="bearbeiten(item)" aria-label="Bearbeiten">
               <Icon name="stift" class="icon" />
             </button>
@@ -138,7 +143,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getShoppingItems, createShoppingItem, updateShoppingItem, deleteShoppingItem, clearErledigte } from '../api/index.js'
+import { useMode } from '../composables/useMode.js'
 import Icon from '../components/Icon.vue'
+
+const { mode } = useMode()
 
 const items = ref([])
 const loading = ref(false)
@@ -148,6 +156,9 @@ const urgencies = [
   { value: 'mittel', label: 'Mittel' },
   { value: 'hoch', label: 'Hoch' },
   { value: 'dringend', label: 'Dringend' },
+  // Wird auf dem Lager ausgeblendet -- was bis zum nächsten Lager Zeit
+  // hat, lenkt währenddessen nur ab.
+  { value: 'naechstes_lager', label: 'Bis nächstes Lager' },
 ]
 
 const newForm = ref({ name: '', quantity: 1, unit: 'Stück', urgency: 'mittel' })
@@ -191,7 +202,7 @@ function urgencyLabel(u) {
 
 async function load() {
   loading.value = true
-  try { items.value = await getShoppingItems() }
+  try { items.value = await getShoppingItems(mode.value) }
   finally { loading.value = false }
 }
 
@@ -248,6 +259,13 @@ onMounted(load)
   background: rgba(53, 29, 8, 0.07);
 }
 .stufe.an.dringend { color: var(--rot); border-color: var(--rot); background: var(--rot-blass); }
+.stufe.naechstes_lager { flex-basis: 100%; }
+
+.modus-hinweis {
+  font-family: var(--schrift-hand);
+  font-size: 16px; color: var(--tinte-blass);
+  text-align: center; margin-top: 14px;
+}
 
 /* ── Einträge auf dem Zettel: alles von Hand geschrieben ── */
 .eintrag { flex: 1; min-width: 0; }
@@ -286,6 +304,14 @@ onMounted(load)
   line-height: 1;
 }
 .zettel-zeile.hoch .was { color: #7d3b25; }
+.zettel-zeile.naechstes_lager .was { color: var(--tinte-blass); }
+.lager-marke {
+  font-family: var(--schrift-stempel);
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--tinte-blass); flex-shrink: 0;
+  border: 1px solid var(--linie); border-radius: var(--radius-sm);
+  padding: 2px 6px; line-height: 1.3;
+}
 
 /* Abgehaktes wird durchgestrichen, nicht ausgeblendet */
 .abgehakt .was {

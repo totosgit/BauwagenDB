@@ -42,12 +42,14 @@ def validate_type(parent: Location | None, child_type: str):
         )
 
 
-def ist_nachfahre(db: Session, kandidat_id: int, moeglicher_vorfahre_id: int) -> bool:
+def ist_nachfahre(db: Session, kandidat_id: int, moeglicher_vorfahre_id: int,
+                  modus: str = "lager") -> bool:
     """Liegt kandidat_id unterhalb von moeglicher_vorfahre_id?
 
     Wird gebraucht, damit ein Ort nicht in sich selbst verschoben werden
     kann. Ohne diese Pruefung entstuende ein Kreis, und der Baumaufbau
-    liefe endlos.
+    liefe endlos. Gilt fuer beide Baeume -- unter dem Jahr kann ein Ort
+    ueber parent_jahr_id woanders haengen.
     """
     gesehen = set()
     aktuell = kandidat_id
@@ -58,11 +60,15 @@ def ist_nachfahre(db: Session, kandidat_id: int, moeglicher_vorfahre_id: int) ->
         ort = db.get(Location, aktuell)
         if ort is None:
             return False
-        aktuell = ort.parent_id
+        if modus == "jahr" and ort.parent_jahr_id:
+            aktuell = ort.parent_jahr_id
+        else:
+            aktuell = ort.parent_id
     return False
 
 
-def pruefe_verschiebung(db: Session, loc: Location, neuer_parent_id: int | None) -> Location | None:
+def pruefe_verschiebung(db: Session, loc: Location, neuer_parent_id: int | None,
+                        modus: str = "lager") -> Location | None:
     """Gemeinsame Pruefung fuer Umhaengen. Gibt den neuen Elternort zurueck."""
     if neuer_parent_id is None:
         return None
@@ -71,7 +77,7 @@ def pruefe_verschiebung(db: Session, loc: Location, neuer_parent_id: int | None)
     ziel = db.get(Location, neuer_parent_id)
     if ziel is None:
         raise HTTPException(status_code=404, detail="Zielort nicht gefunden")
-    if ist_nachfahre(db, neuer_parent_id, loc.id):
+    if ist_nachfahre(db, neuer_parent_id, loc.id, modus):
         raise HTTPException(
             status_code=400,
             detail=f"'{ziel.name}' liegt innerhalb von '{loc.name}' -- das ergaebe einen Kreis",
@@ -160,6 +166,13 @@ def update_location(location_id: int, data: LocationUpdate, db: Session = Depend
     else:
         parent = db.get(Location, new_parent_id) if new_parent_id else None
     validate_type(parent, new_type)
+
+    # Der Jahr-Elternteil braucht dieselbe Pruefung, sonst laesst sich ueber
+    # ihn ein Kreis bauen.
+    if "parent_jahr_id" in data.model_fields_set and data.parent_jahr_id != loc.parent_jahr_id:
+        if data.parent_jahr_id is not None:
+            ziel_jahr = pruefe_verschiebung(db, loc, data.parent_jahr_id, "jahr")
+            validate_type(ziel_jahr, new_type)
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(loc, field, value)
     db.commit()
