@@ -16,7 +16,7 @@
 
     <!-- Fertig-Ansicht -->
     <div v-if="isDone" class="wizard-done">
-      <div class="wizard-done-label">Lagerort</div>
+      <div class="wizard-done-label">{{ zweck === 'ziel' ? 'Neuer Platz' : 'Lagerort' }}</div>
       <div class="wizard-done-value">{{ breadcrumb }}</div>
       <button class="btn btn-secondary btn-sm" style="margin-top:10px" @click="reset">Ändern</button>
     </div>
@@ -29,14 +29,20 @@
         Noch keine Orte angelegt — bitte zuerst unter "Orte" Standorte anlegen.
       </div>
 
-      <div v-else-if="!currentOptions.length" class="wizard-empty">
+      <div v-else-if="!currentOptions.length && !hierAblegbar" class="wizard-empty">
         Kein passender Unterbereich vorhanden. Bitte erst unter "Orte" anlegen.
       </div>
 
-      <div v-else>
+      <div v-else-if="hierAblegbar || currentOptions.length">
         <!-- "Direkt auf dem Boden" Option -->
         <button v-if="canPickDirect" class="wizard-opt wizard-opt-direct" @click="pickDirect">
           <Icon name="haken" class="icon" />Direkt auf dem Boden (ohne Kiste)
+        </button>
+
+        <!-- Beim Verschieben: diese Ebene selbst nehmen -->
+        <button v-if="hierAblegbar" class="wizard-opt wizard-opt-direct" @click="hierAblegen">
+          <Icon name="haken" class="icon" />
+          {{ currentParent ? `Hierher: ${currentParent.name}` : 'Auf die oberste Ebene' }}
         </button>
 
         <!-- Gruppierte Ansicht (Kinder eines Gebäudes) -->
@@ -85,6 +91,18 @@ import { typIcon } from '../utils/orttypen.js'
 const props = defineProps({
   modelValue: { type: Number, default: null },
   locations: { type: Array, default: () => [] },
+  /**
+   * "gegenstand" = wohin gehoert ein Ding (Standard).
+   * "ziel"       = wohin gehoert ein ganzer Lagerort. Dann sind auch
+   *                Zwischenebenen waehlbar, nicht nur Kisten und Waende.
+   */
+  zweck: { type: String, default: 'gegenstand' },
+  /** Diese Orte sind nicht waehlbar (der Ort selbst und alles darunter). */
+  gesperrt: { type: Array, default: () => [] },
+  /** Nur diese Typen sind ein gueltiges Ziel. Leer = alle. */
+  erlaubteTypen: { type: Array, default: () => [] },
+  /** Im Jahr-Baum navigieren (parent_jahr_id statt parent_id). */
+  jahrBaum: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -100,9 +118,15 @@ const path = ref([])       // Navigation-Pfad (ohne das finale Element)
 const isDone = ref(false)
 const finalName = ref('')
 
-// Kinder eines Location-Knotens
+// Kinder eines Location-Knotens. Im Jahr-Baum zaehlt parent_jahr_id, wo
+// gesetzt -- eine Kiste kann dort woanders haengen.
+function elternVon(l) {
+  return props.jahrBaum && l.parent_jahr_id ? l.parent_jahr_id : l.parent_id
+}
 function getChildren(parentId) {
-  return props.locations.filter(l => l.parent_id === parentId)
+  return props.locations
+    .filter(l => elternVon(l) === parentId)
+    .filter(l => !props.gesperrt.includes(l.id))
 }
 function childCount(id) {
   return getChildren(id).length
@@ -114,7 +138,18 @@ const currentParentId = computed(() => currentParent.value?.id ?? null)
 const currentOptions = computed(() => getChildren(currentParentId.value))
 
 // Auf einem Boden kann direkt (ohne Kiste) platziert werden
-const canPickDirect = computed(() => currentParentType.value === 'boden')
+const canPickDirect = computed(
+  () => props.zweck === 'gegenstand' && currentParentType.value === 'boden'
+)
+
+/** Darf die aktuelle Ebene selbst gewaehlt werden? Beim Verschieben eines
+    Ortes ja -- eine Kiste kommt auf einen Boden, nicht in eine andere Kiste. */
+const hierAblegbar = computed(() => {
+  if (props.zweck !== 'ziel') return false
+  const typ = currentParentType.value
+  if (typ === null) return props.erlaubteTypen.includes('__root__')
+  return props.erlaubteTypen.length === 0 || props.erlaubteTypen.includes(typ)
+})
 
 // Kinder eines Gebäudes werden nach Typ gruppiert
 const showGrouped = computed(() =>
@@ -141,7 +176,9 @@ const noLocationsAtAll = computed(() =>
 
 const currentQuestion = computed(() => {
   switch (currentParentType.value) {
-    case null:        return 'Wo befindet sich das Objekt?'
+    case null:        return props.zweck === 'ziel'
+                        ? 'Wohin soll der Ort?'
+                        : 'Wo befindet sich das Objekt?'
     case 'bauwagen':  return 'Wie ist es im Bauwagen gelagert?'
     case 'schopf':    return 'Wie ist es im Schopf gelagert?'
     case 'sonstiges': return 'Wie ist es dort gelagert?'
@@ -163,6 +200,17 @@ function pick(loc) {
   const children = getChildren(loc.id)
   const isLeaf = LEAF_TYPES.has(loc.type)
 
+  if (props.zweck === 'ziel') {
+    // Beim Verschieben immer erst hineinnavigieren, wenn es weitergeht --
+    // gewaehlt wird ueber "Hierher", nicht durch bloßes Antippen.
+    if (children.length) {
+      path.value = [...path.value, loc]
+    } else if (props.erlaubteTypen.length === 0 || props.erlaubteTypen.includes(loc.type)) {
+      finalize(loc)
+    }
+    return
+  }
+
   if (isLeaf || children.length === 0) {
     // Blatt oder kein weiterer Unterbereich → direkt auswählen
     finalize(loc)
@@ -170,6 +218,18 @@ function pick(loc) {
     // Tiefer navigieren
     path.value = [...path.value, loc]
   }
+}
+
+/** Beim Verschieben: die Ebene nehmen, in der man gerade steht. */
+function hierAblegen() {
+  const hier = currentParent.value
+  if (!hier) {
+    finalName.value = ''
+    isDone.value = true
+    emit('update:modelValue', 0)      // 0 = oberste Ebene
+    return
+  }
+  finalize(hier)
 }
 
 function pickDirect() {

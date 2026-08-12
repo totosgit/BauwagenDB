@@ -39,6 +39,30 @@ def alle_breadcrumbs(db: Session, modus: str = "lager") -> dict[int, str]:
     return fertig
 
 
+def ort_mit_nachfahren(db: Session, location_id: int, modus: str = "lager") -> set[int]:
+    """Der Ort selbst plus alles, was darunter haengt.
+
+    Damit zeigt ein Tipp auf ein Regal auch, was in dessen Faechern und
+    Kisten liegt -- nicht nur, was direkt am Regal haengt.
+    """
+    zeilen = db.query(Location.id, Location.parent_id, Location.parent_jahr_id).all()
+    kinder: dict[int, list[int]] = {}
+    for oid, parent, parent_jahr in zeilen:
+        eltern = parent_jahr if (modus == "jahr" and parent_jahr) else parent
+        if eltern is not None:
+            kinder.setdefault(eltern, []).append(oid)
+
+    gefunden = {location_id}
+    stapel = [location_id]
+    while stapel:
+        aktuell = stapel.pop()
+        for kind in kinder.get(aktuell, []):
+            if kind not in gefunden:      # Zyklenschutz
+                gefunden.add(kind)
+                stapel.append(kind)
+    return gefunden
+
+
 def get_breadcrumb(db: Session, location_id: int | None, modus: str = "lager") -> str:
     if location_id is None:
         return ""

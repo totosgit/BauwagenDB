@@ -214,11 +214,12 @@ import draggable from 'vuedraggable'
 import {
   getLocationsTree, getLocations,
   createLocation, updateLocation, deleteLocation, reorderLocations,
-  getMoveTargets, relocateLocation,
+  getNachfahren, relocateLocation,
 } from '../api/index.js'
 import { useMode } from '../composables/useMode.js'
 import { useExpanded } from '../composables/useExpanded.js'
 import LocationNode from '../components/LocationNode.vue'
+import LocationWizard from '../components/LocationWizard.vue'
 import Icon from '../components/Icon.vue'
 import { typIcon, typLabel } from '../utils/orttypen.js'
 
@@ -346,28 +347,37 @@ function onRootDragEnd() {
 const umzug = ref({ open: false, id: null, name: '', ziele: [], zielId: null, laedt: false, saving: false, error: '' })
 
 async function openRelocate(node) {
+  // Wohin darf dieser Typ? Das sind genau die Eltern-Typen, unter denen er
+  // laut Hierarchie erlaubt ist -- plus die oberste Ebene, falls zulässig.
+  const erlaubt = Object.entries(VALID_CHILDREN)
+    .filter(([, kinder]) => kinder.includes(node.type))
+    .map(([elternTyp]) => (elternTyp === 'null' ? '__root__' : elternTyp))
+
   umzug.value = {
     open: true, id: node.id, name: node.name, modus: 'lager',
-    ziele: [], zielId: null, laedt: true, saving: false, error: '',
+    zielId: null, gesperrt: [], erlaubteTypen: erlaubt,
+    laedt: true, saving: false, error: '',
   }
-  await zieleLaden()
+  await gesperrteLaden()
 }
 
-async function zieleLaden() {
+/** Der Ort selbst und alles darunter darf kein Ziel sein -- sonst Kreis. */
+async function gesperrteLaden() {
   umzug.value.laedt = true
   umzug.value.error = ''
   try {
-    umzug.value.ziele = await getMoveTargets(umzug.value.id)
-  } catch (e) {
-    umzug.value.error = e.response?.data?.detail || 'Ziele konnten nicht geladen werden'
+    umzug.value.gesperrt = await getNachfahren(umzug.value.id, umzug.value.modus)
+  } catch {
+    umzug.value.gesperrt = [umzug.value.id]   // im Zweifel wenigstens sich selbst
   } finally {
     umzug.value.laedt = false
   }
 }
 
-function umzugModus(m) {
+async function umzugModus(m) {
   umzug.value.modus = m
   umzug.value.zielId = null
+  await gesperrteLaden()
 }
 
 async function umzugAusfuehren() {
@@ -494,6 +504,7 @@ onMounted(load)
   -webkit-tap-highlight-color: transparent;
 }
 .ziel.an { border-color: var(--gebrannt); background: rgba(53,29,8,.08); }
+.ziel.gleich { margin-bottom: 14px; }
 .ziel .icon { font-size: 21px; color: var(--gebrannt); flex-shrink: 0; }
 .ziel-text { display: flex; flex-direction: column; min-width: 0; }
 .ziel-name { font-weight: 600; font-size: 16px; }

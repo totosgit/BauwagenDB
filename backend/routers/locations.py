@@ -231,6 +231,20 @@ def delete_location(location_id: int, db: Session = Depends(get_db), _: User = D
     db.commit()
 
 
+@router.get("/{location_id}/nachfahren", response_model=list[int])
+def nachfahren(
+    location_id: int,
+    modus: str = "lager",
+    db: Session = Depends(get_db),
+    _: User = Depends(current_user),
+):
+    """Alle Orte unterhalb -- damit die Zielauswahl sie ausblenden kann."""
+    from utils import ort_mit_nachfahren
+    if not db.get(Location, location_id):
+        raise HTTPException(status_code=404, detail="Location not found")
+    return sorted(ort_mit_nachfahren(db, location_id, modus))
+
+
 @router.get("/{location_id}/verschiebe-ziele", response_model=list[LocationResponse])
 def verschiebe_ziele(
     location_id: int,

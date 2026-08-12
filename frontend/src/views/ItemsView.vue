@@ -11,7 +11,7 @@
         placeholder="Werkzeug, Material …"
         autocomplete="off"
         autocorrect="off"
-        @input="onInput"
+        @input="onInputMitFilter"
       />
       <button v-if="query" class="leeren" @click="reset" aria-label="Suche zurücksetzen">
         <Icon name="schliessen" class="icon" />
@@ -28,8 +28,21 @@
     </div>
     <div v-if="listening" class="hoert-hinweis">Sprich jetzt …</div>
 
+    <!-- Ein Ort ist ausgewählt: nur noch dessen Inhalt, mit Weg zurück -->
+    <div v-if="ortFilter" class="ort-kopf">
+      <button class="zurueck-knopf" @click="ortVerlassen" aria-label="Filter aufheben">
+        <Icon name="zurueck" class="icon" />
+      </button>
+      <span class="ort-kopf-text">
+        <span class="ort-kopf-name">
+          <Icon :name="typIcon(ortFilter.type)" class="icon" />{{ ortFilter.name }}
+        </span>
+        <span v-if="ortFilter.breadcrumb" class="ort-kopf-pfad">{{ ortFilter.breadcrumb }}</span>
+      </span>
+    </div>
+
     <!-- Kategorien nur beim Blättern, bei einer Suche wären sie doppelt -->
-    <div v-if="!suchModus" class="filter-row">
+    <div v-if="!suchModus && !ortFilter" class="filter-row">
       <button
         class="btn btn-sm"
         :class="activeCategory === null ? 'btn-primary' : 'btn-secondary'"
@@ -50,7 +63,9 @@
       <div v-if="!items.length && !orte.length" class="empty">
         <Icon :name="suchModus ? 'suche' : 'dinge'" class="icon" />
         <div class="hinweis">
-          {{ suchModus ? `Nichts gefunden für „${query}"` : 'Noch nichts aufgenommen' }}
+          <template v-if="ortFilter">Hier liegt nichts.</template>
+          <template v-else-if="suchModus">Nichts gefunden für „{{ query }}"</template>
+          <template v-else>Noch nichts aufgenommen</template>
         </div>
         <button v-if="!suchModus" class="btn btn-primary" style="margin-top:16px" @click="$router.push('/items/new')">
           <Icon name="plus" class="icon" />Ersten Gegenstand aufnehmen
@@ -80,7 +95,7 @@
           </div>
         </template>
 
-        <div v-if="suchModus" class="section-label">
+        <div v-if="suchModus || ortFilter" class="section-label">
           {{ items.length }} {{ items.length === 1 ? 'Gegenstand' : 'Gegenstände' }}
         </div>
         <div class="polaroids">
@@ -122,6 +137,9 @@ const listening = ref(false)
 const inputEl = ref(null)
 
 const suchModus = computed(() => !!query.value.trim())
+// Ein Lagerort ist ausgewählt: dann zeigt die Liste ausschließlich, was
+// dort (und darunter) liegt.
+const ortFilter = ref(null)
 const speechSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition)
 
 let debounceTimer = null
@@ -130,7 +148,10 @@ let recognition = null
 async function load() {
   loading.value = true
   try {
-    if (suchModus.value) {
+    if (ortFilter.value) {
+      orte.value = []
+      items.value = await getItems({ mode: mode.value, location_id: ortFilter.value.id })
+    } else if (suchModus.value) {
       const daten = await searchAll(query.value.trim(), mode.value)
       items.value = daten.items || []
       orte.value = daten.orte || []
@@ -156,6 +177,12 @@ function reset() {
   load()
 }
 
+// Beim Tippen den Ortsfilter aufheben -- sonst sucht man im Nichts
+function onInputMitFilter() {
+  if (ortFilter.value && query.value.trim()) ortFilter.value = null
+  onInput()
+}
+
 function toggleVoice() {
   if (listening.value) {
     recognition?.stop()
@@ -177,9 +204,16 @@ function toggleVoice() {
   recognition.start()
 }
 
-/** Zeigt, was in dieser Kiste liegt -- als Suche nach dem Ortsnamen. */
+/** Zeigt ausschließlich, was in dieser Kiste liegt. Vorher war das eine
+    Suche nach dem Ortsnamen -- die brachte auch alles Gleichnamige mit. */
 function ortOeffnen(o) {
-  query.value = o.name
+  ortFilter.value = o
+  query.value = ''
+  load()
+}
+
+function ortVerlassen() {
+  ortFilter.value = null
   load()
 }
 
@@ -233,6 +267,31 @@ onMounted(async () => {
 @keyframes pochen { 0%, 100% { opacity: 1 } 50% { opacity: 0.55 } }
 
 .filter-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 6px; }
+
+/* Kopfzeile bei ausgewähltem Lagerort */
+.ort-kopf {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--blatt); border-radius: var(--radius-sm);
+  box-shadow: var(--schatten);
+  padding: 10px 13px; margin-bottom: 10px;
+}
+.zurueck-knopf {
+  width: 38px; height: 38px; flex-shrink: 0;
+  border: 1.5px solid var(--linie-stark); border-radius: var(--radius-sm);
+  background: transparent; color: var(--tinte);
+  font-size: 17px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.ort-kopf-text { display: flex; flex-direction: column; min-width: 0; }
+.ort-kopf-name {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 600; font-size: 17px;
+}
+.ort-kopf-name .icon { font-size: 18px; color: var(--gebrannt); }
+.ort-kopf-pfad {
+  font-family: var(--schrift-hand); font-size: 14.5px;
+  color: var(--tinte-blass); overflow-wrap: anywhere;
+}
 
 /* Gefundene Lagerorte: schlichte Zeilen, klar abgesetzt von den Abzügen */
 .ort-treffer { display: flex; flex-direction: column; gap: 7px; }

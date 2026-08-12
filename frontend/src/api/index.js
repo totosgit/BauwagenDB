@@ -114,6 +114,9 @@ export const deleteLocation = (id) => api.delete(`/locations/${id}`)
 export const moveLocation = (id, direction) => api.patch(`/locations/${id}/move`, null, { params: { direction } }).then(r => r.data)
 // Umhängen an einen anderen Elternort (ziel_id 0 = oberste Ebene)
 export const getMoveTargets = (id) => api.get(`/locations/${id}/verschiebe-ziele`).then(r => r.data)
+// Der Ort selbst und alles darunter -- als Sperrliste für die Zielauswahl
+export const getNachfahren = (id, modus = 'lager') =>
+  api.get(`/locations/${id}/nachfahren`, { params: { modus } }).then(r => r.data)
 export const relocateLocation = (id, ziel_id) =>
   api.patch(`/locations/${id}/verschiebe`, null, { params: { ziel_id } }).then(r => r.data)
 export const reorderLocations = (orderedIds) => api.post('/locations/reorder', orderedIds)

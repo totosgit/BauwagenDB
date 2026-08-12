@@ -8,7 +8,7 @@ from auth import current_admin, current_user
 from database import get_db, IMAGES_DIR
 from models import Item, User
 from schemas import ItemCreate, ItemUpdate, ItemResponse
-from utils import alle_breadcrumbs, get_breadcrumb
+from utils import alle_breadcrumbs, get_breadcrumb, ort_mit_nachfahren
 
 router = APIRouter(prefix="/items", tags=["items"])
 
@@ -60,13 +60,21 @@ def item_to_response(
 def list_items(
     category: str | None = None,
     mode: str | None = None,
-    db: Session = Depends(get_db)
+    location_id: int | None = None,
+    db: Session = Depends(get_db),
 ):
+    """location_id zeigt ausschliesslich, was an diesem Ort liegt --
+    einschliesslich allem, was darunter haengt. Welche Ortsspalte zaehlt,
+    haengt vom Modus ab: unter dem Jahr kann eine Kiste woanders stehen."""
     q = db.query(Item)
     if category:
         q = q.filter(Item.category == category)
     if mode:
         q = q.filter(Item.storage_mode.in_([mode, "both"]))
+    if location_id is not None:
+        ids = ort_mit_nachfahren(db, location_id, mode or "lager")
+        spalte = Item.location_jahr_id if mode == "jahr" else Item.location_lager_id
+        q = q.filter(spalte.in_(ids))
     items = q.order_by(Item.name).all()
     pfade = alle_breadcrumbs(db, "lager")
     pfade_jahr = alle_breadcrumbs(db, "jahr")
